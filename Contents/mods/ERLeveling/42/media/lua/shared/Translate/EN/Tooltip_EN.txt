@@ -1,0 +1,7 @@
+Tooltip_EN = {
+    Tooltip_ERLeveling_RuneArc = "A shard of a shattered Great Rune. Absorb it for a large sum of runes.",
+    Tooltip_ERLeveling_GoldenRune = "Congealed runes left by the fallen. Absorb it to claim what they carried.",
+    Tooltip_ERLeveling_LarvalTear = "The tear of a shapeshifter. Rebirth: every attribute returns to its beginning and every rune you spent is given back.",
+    Tooltip_ERLeveling_GraceIdol = "A small guiding light. Set it down and the ground around it becomes a Site of Grace, where runes can be spent.",
+    Tooltip_ERLeveling_Bloodstain = "What you left behind. Stand near it to reclaim your runes.",
+}

@@ -53,10 +53,39 @@ test suite but never by Project Zomboid itself.**
 | B42 only, or B41 too? | **Both, from one source.** |
 
 The Lua is written against the intersection of what both builds plausibly expose,
-with runtime probes wherever they diverge. The repository keeps a single flat
-`Contents/mods/ERLeveling/media/` tree, which is the Build 41 layout and which
-Build 42 still loads. `tools/build.sh` generates the Build 42 versioned layout
-(`ERLeveling/42/media/…`) into `dist/` rather than duplicating every file in git.
+with runtime probes wherever they diverge.
+
+**Revised after the first install attempt.** The shipped folder originally carried
+only the flat Build 41 layout, on the reasoning that Build 42 still loads it and
+that duplicating every file in git was not worth it. That was the wrong trade: the
+mod did not appear in the mod list at all on the reporter's machine, and a mod
+carrying no `pzversion` can be filtered out of Build 42's list as an untagged
+legacy mod. Correctness for the person installing it beats a tidy repository.
+
+The folder now carries **both** layouts at once:
+
+```
+ERLeveling/
+├── mod.info          pzversion=41.78.16   <- Build 41 reads this + root media/
+├── poster.png
+├── media/
+└── 42/
+    ├── mod.info      pzversion=42.0.0     <- Build 42 prefers this subfolder
+    ├── poster.png
+    └── media/
+```
+
+Build 41 ignores version subfolders, so `42/` is invisible to it; Build 42 prefers
+`42/` and falls back to the root if it does not use versioned folders the way this
+assumes. Adding the subtree is therefore strictly non-worse on either build.
+
+The root tree stays the single source of truth. `tools/sync_versioned.sh`
+regenerates `42/` from it, and `tools/build.sh` fails if the two have drifted, so
+the duplication cannot rot silently.
+
+Two keys were also removed from `mod.info`: `icon=` pointed at the 512x256 poster,
+which is not an icon and is unverified surface for no in-game benefit, and `url=`
+is not a key Project Zomboid reads at all.
 
 `ERCompat.buildNumber()` detects the build for logging and for the loot-table
 branch. It is deliberately not used to gate anything that could instead be probed

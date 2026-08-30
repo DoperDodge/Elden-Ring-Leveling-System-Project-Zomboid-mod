@@ -1,0 +1,94 @@
+module ERLeveling
+{
+    imports
+    {
+        Base
+    }
+
+    /*
+        Rune consumables. "Absorb Runes" is added to the inventory context menu
+        by media/lua/client/ERLeveling_Consumables.lua; the rune value of each
+        item lives in ERLeveling_Balance.lua, not here, so all tuning stays in
+        one place.
+
+        No crafting recipes are declared in this file on purpose: Build 41 and
+        Build 42 use different recipe script formats, and a recipe the running
+        build cannot parse produces console errors. The Grace Idol is forged
+        through a Lua context-menu option instead. See NOTES.md.
+    */
+
+    item RuneArc
+    {
+        DisplayCategory     = Junk,
+        Type                = Normal,
+        DisplayName         = Rune Arc,
+        Icon                = RuneArc,
+        Weight              = 0.1,
+        Tooltip             = Tooltip_ERLeveling_RuneArc,
+    }
+
+    item GoldenRune1
+    {
+        DisplayCategory     = Junk,
+        Type                = Normal,
+        DisplayName         = Golden Rune [1],
+        Icon                = GoldenRune,
+        Weight              = 0.05,
+        Tooltip             = Tooltip_ERLeveling_GoldenRune,
+    }
+
+    item GoldenRune2
+    {
+        DisplayCategory     = Junk,
+        Type                = Normal,
+        DisplayName         = Golden Rune [2],
+        Icon                = GoldenRune,
+        Weight              = 0.05,
+        Tooltip             = Tooltip_ERLeveling_GoldenRune,
+    }
+
+    item GoldenRune3
+    {
+        DisplayCategory     = Junk,
+        Type                = Normal,
+        DisplayName         = Golden Rune [3],
+        Icon                = GoldenRune,
+        Weight              = 0.05,
+        Tooltip             = Tooltip_ERLeveling_GoldenRune,
+    }
+
+    item LarvalTear
+    {
+        DisplayCategory     = Junk,
+        Type                = Normal,
+        DisplayName         = Larval Tear,
+        Icon                = LarvalTear,
+        Weight              = 0.1,
+        Tooltip             = Tooltip_ERLeveling_LarvalTear,
+    }
+
+    item GraceIdol
+    {
+        DisplayCategory     = Camping,
+        Type                = Normal,
+        DisplayName         = Grace Idol,
+        Icon                = GraceIdol,
+        Weight              = 1.2,
+        Tooltip             = Tooltip_ERLeveling_GraceIdol,
+    }
+
+    /*
+        Dropped by the server on the square where a player died. It is a marker,
+        not loot: picking it up does nothing, and reclaiming the runes is handled
+        by proximity or the "Reclaim Runes" context option.
+    */
+    item Bloodstain
+    {
+        DisplayCategory     = Junk,
+        Type                = Normal,
+        DisplayName         = Bloodstain,
+        Icon                = Bloodstain,
+        Weight              = 0.0,
+        Tooltip             = Tooltip_ERLeveling_Bloodstain,
+    }
+}
