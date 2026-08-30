@@ -404,6 +404,35 @@ ERCompat.call(noLit, "isLit")
 local okLit, lit = ERCompat.call(hasLit, "isLit")
 check("a member missing elsewhere is still found here", okLit == true and lit == true)
 
+-- The same trap on the two hottest scanning paths: ERGrace reads members from
+-- every object on up to 49 squares twice a second, and the body-part loops run
+-- seventeen times a pass on two timers. Both must probe through ERCompat, whose
+-- blacklist makes a missing member cost one trace rather than thousands.
+check("Grace probes members through ERCompat, not bare pcall", (function()
+    local f = io.open(ROOT .. "shared/ERLeveling_Grace.lua", "r")
+    if not f then return false end
+    local body = f:read("*a"); f:close()
+    -- The members that genuinely may be absent must not be read by bare pcall.
+    for _, risky in ipairs({ "getSprite", "getModData", "getWorldObjects", "getObjects" }) do
+        if string.find(body, "pcall(function() return obj:" .. risky, 1, true)
+           or string.find(body, "pcall(function() return square:" .. risky, 1, true) then
+            return false
+        end
+    end
+    return true
+end)())
+
+check("body-part types are resolved once, not per iteration", (function()
+    local f = io.open(ROOT .. "client/ERLeveling_Effects.lua", "r")
+    if not f then return false end
+    local body = f:read("*a"); f:close()
+    -- Match the call syntax, not the word, so the comment explaining the rule
+    -- does not trip its own test. The call belongs in the resolver and nowhere
+    -- else, so exactly one occurrence.
+    local _, n = string.gsub(body, "BodyPartType%.FromIndex%(", "")
+    return n == 1
+end)())
+
 -- The flood came from deriving a cache key with obj:getClass():getName(), which
 -- Kahlua cannot index. Nothing in the mod may call getClass() again.
 check("no source file calls getClass()", (function()
