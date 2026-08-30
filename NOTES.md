@@ -279,6 +279,68 @@ line, so the two composited into one unreadable line. The strip now reserves tha
 last text line and sits above it, and paints its own opaque ground rather than
 trusting whatever was drawn underneath.
 
+### 2.8d The log flood: a caught exception is still a logged exception
+
+**Second in-game report, with `console.txt`.** 737 mod lines, and every one of them
+was the same single call:
+
+```
+java.lang.RuntimeException: attempted index: getName of non-table:
+    class zombie.characters.Stats
+  at KahluaThread.tableget(KahluaThread.java:1430)
+  ERLeveling_Compat.lua:44   <- ERCompat.has
+  ERLeveling_Effects.lua:242 <- the endurance handler, every tick
+```
+
+`ERCompat.has` derived a cache key with a Class-name lookup on the object. Kahlua
+cannot index the Class object that returns, so it threw. The `pcall` around it
+caught the error correctly and nothing crashed — **and Project Zomboid logged the
+full Java and Lua stack trace anyway.**
+
+That is the fact the whole compat layer was built without knowing:
+
+> **A pcall stops an exception from propagating. It does not stop Project Zomboid
+> from logging it.** A caught error still costs about thirty lines in
+> `console.txt`.
+
+Which turns the layer's central idea inside out. "Probe by trying it and catching
+the failure" is free when the probe *succeeds*, and costs a stack trace every time
+it *fails* — so a failing probe on `OnPlayerUpdate` writes a stack trace per frame.
+Nothing was broken; `getEndurance` and `setEndurance` both worked fine. The only
+thing failing was the cache key I derived in order to be careful.
+
+Rewritten around two rules:
+
+1. **Never index a game object to test for a member.** Only ever call it for real,
+   inside a `pcall`. `ERCompat.has` is now optimistic — "not known to be missing" —
+   and `ERCompat.call` finds out for real.
+2. **Remember every (class, member) that failed**, so a genuinely missing member
+   costs one logged trace for the session instead of one per call. The class is
+   discriminated by `tostring(obj)` up to the `@` (and by metatable identity for
+   Lua-side objects), never by a Class-name lookup.
+
+The discrimination matters as much as the caching: a member missing on one class
+says nothing about another. Lumping them together would let a single world object
+without `isLit()` convince the mod that no campfire is ever lit.
+
+`tools/build.sh` now fails the build if a Class-name lookup reappears anywhere in
+the mod, and `tools/test_offline.lua` asserts that a missing member is attempted
+exactly once however many times it is called.
+
+### 2.8e The load-order regression that hid the rune strip
+
+Same report: after the previous fix the rune counter disappeared entirely.
+
+`ERHooks.install()` runs at the bottom of `ERHooks.lua` at file load, and the
+previous change had it call `ERUI.protectAll()`. Project Zomboid loads
+`client/UI` **alphabetically**, so `ERUI.lua` had not been loaded yet. `ERUI` was
+nil, the reference threw at file scope, and the error took the whole of
+`ERHooks.lua` with it — no hooks, so no rune strip and no Runes tab.
+
+Guarded, and `build.sh` now fails if any file sorting before `ERUI.lua` touches
+`ERUI` at file scope. Both lints were verified by deliberately reintroducing each
+bug and confirming the build rejects it.
+
 ### 2.9 The rune strip is a child panel, repositioned in a `render` wrap
 
 As PLAN.md §7.1 asks. The wrap also subtracts the host's scroll offset (when

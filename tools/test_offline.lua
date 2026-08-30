@@ -367,6 +367,66 @@ local unknownCmd = ERNet.dispatch(p, "notARealCommand", {})
 check("an unknown command returns nil rather than erroring", unknownCmd == nil)
 
 -- ---------------------------------------------------------------------------
+section("API probing does not flood the log")
+-- ---------------------------------------------------------------------------
+-- Regression test for the console flood. Project Zomboid logs a Java exception
+-- even when a Lua pcall catches it, so every failed probe costs ~30 lines of
+-- stack trace. A probe on a per-tick path must therefore fail at most ONCE.
+
+local attempts = 0
+local missing = setmetatable({}, {
+    __index = function(_, k)
+        attempts = attempts + 1
+        error("attempted index: " .. tostring(k) .. " of non-table")
+    end,
+})
+
+local okCall = ERCompat.call(missing, "noSuchMethod")
+eq("calling a missing member reports failure", okCall, false)
+eq("the first call actually attempts it", attempts, 1)
+
+for _ = 1, 50 do ERCompat.call(missing, "noSuchMethod") end
+eq("fifty more calls never attempt it again", attempts, 1)
+eq("has() reports the member missing once we know", ERCompat.has(missing, "noSuchMethod"), false)
+
+-- A member that works must not be penalised, and must keep returning its value.
+local working = { getEndurance = function(self) return 0.75 end }
+local okE, endurance = ERCompat.call(working, "getEndurance")
+check("a working member succeeds", okE == true)
+eq("a working member returns its value", endurance, 0.75)
+eq("a working member stays available", ERCompat.has(working, "getEndurance"), true)
+
+-- A member missing on one class must not be written off on another. This is the
+-- Site of Grace case: most world objects have no isLit(), campfires do.
+local noLit = setmetatable({}, { __index = function(_, k) error("no " .. k) end })
+local hasLit = { isLit = function(self) return true end }
+ERCompat.call(noLit, "isLit")
+local okLit, lit = ERCompat.call(hasLit, "isLit")
+check("a member missing elsewhere is still found here", okLit == true and lit == true)
+
+-- The flood came from deriving a cache key with obj:getClass():getName(), which
+-- Kahlua cannot index. Nothing in the mod may call getClass() again.
+check("no source file calls getClass()", (function()
+    local paths = {
+        "shared/ERLeveling_Compat.lua", "shared/ERLeveling_Data.lua",
+        "shared/ERLeveling_Grace.lua", "shared/ERLeveling_Util.lua",
+        "server/ERLeveling_Runes.lua", "server/ERLeveling_Bloodstain.lua",
+        "server/ERLeveling_ServerCommands.lua",
+    }
+    for _, rel in ipairs(paths) do
+        local f = io.open(ROOT .. rel, "r")
+        if f then
+            local body = f:read("*a")
+            f:close()
+            -- Match the call syntax, not the word, so the comments explaining
+            -- why it is banned do not trip their own test.
+            if string.find(body, ":getClass(", 1, true) then return false end
+        end
+    end
+    return true
+end)())
+
+-- ---------------------------------------------------------------------------
 section("UI crash containment")
 -- ---------------------------------------------------------------------------
 -- Regression test for the bug that made the game unclickable: an error thrown

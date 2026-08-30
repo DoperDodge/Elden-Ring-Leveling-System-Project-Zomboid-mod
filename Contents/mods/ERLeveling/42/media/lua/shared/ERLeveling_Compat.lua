@@ -20,7 +20,6 @@
 
 ERCompat = ERCompat or {}
 
-ERCompat._methodCache = ERCompat._methodCache or {}
 ERCompat._globalCache = ERCompat._globalCache or {}
 ERCompat._eventCache  = ERCompat._eventCache  or {}
 ERCompat._missing     = ERCompat._missing     or {}
@@ -32,32 +31,96 @@ local function noteMissing(what)
     end
 end
 
---- True when `obj` exposes a callable member named `name`.
--- Works for both Lua tables and Java-exposed objects (which answer to indexing
--- but may throw on unknown members, hence the pcall).
+--[[
+    A NOTE THAT SHAPES THIS WHOLE FILE
+    ----------------------------------
+    Project Zomboid's Lua VM (Kahlua) logs a Java exception to console.txt even
+    when a Lua pcall catches it. A caught error is still roughly thirty lines of
+    Java and Lua stack trace in the log.
+
+    So "probe by trying it and catching the failure" is only free when it
+    succeeds. Every failed probe costs a stack trace, and a failed probe on a
+    per-tick path costs one per frame - which is exactly what happened: a
+    Class-name lookup used to build a cache key threw on every single probe, was
+    caught harmlessly, and buried console.txt from OnPlayerUpdate at frame rate.
+
+    Hence the two rules below:
+      1. Never index a Java object to *test* for a member. Only ever call the
+         member for real, inside a pcall.
+      2. Remember every (class, member) that failed, so a missing member costs one
+         logged trace for the session instead of one per call.
+]]
+
+-- name -> { [classTag] = true }, the members we have seen fail.
+ERCompat._badMembers = ERCompat._badMembers or {}
+-- name -> true, so the common case (a member that has never failed anywhere) is
+-- a single table lookup with no string work at all.
+ERCompat._badNames = ERCompat._badNames or {}
+
+--- A cheap, non-throwing discriminator for an object's class.
+-- tostring() on a Java object yields "package.Class@1a2b3c"; the part before the
+-- "@" is the class name. Deliberately NOT a Class-name lookup, which is what
+-- caused the log flood: Kahlua cannot index the Class object such a lookup
+-- returns, so it threw on every probe.
+local PLAIN_TYPES = {
+    table = true, string = true, number = true,
+    boolean = true, ["function"] = true, ["nil"] = true,
+}
+
+local function tagOf(obj)
+    local t = type(obj)
+    -- A member missing on one class says nothing about another. Lumping them
+    -- together would let a single object without isLit() convince us that no
+    -- campfire is ever lit, so every object gets discriminated by its class.
+    if t == "table" then
+        -- Lua-side objects: the metatable is the class.
+        local mt = getmetatable(obj)
+        if mt == nil then return "table" end
+        local okMt, id = pcall(tostring, mt)
+        return okMt and ("table:" .. tostring(id)) or "table"
+    end
+    if PLAIN_TYPES[t] then return t end
+    local ok, s = pcall(tostring, obj)
+    if not ok or type(s) ~= "string" then return "object" end
+    local at = string.find(s, "@", 1, true)
+    if at then return string.sub(s, 1, at - 1) end
+    return s
+end
+
+local function isKnownBad(obj, name)
+    if not ERCompat._badNames[name] then return false end
+    local set = ERCompat._badMembers[name]
+    return set ~= nil and set[tagOf(obj)] == true
+end
+
+local function markBad(obj, name)
+    local tag = tagOf(obj)
+    local set = ERCompat._badMembers[name]
+    if set == nil then set = {}; ERCompat._badMembers[name] = set end
+    set[tag] = true
+    ERCompat._badNames[name] = true
+    noteMissing(tag .. ":" .. tostring(name))
+end
+
+--- "Not known to be missing on this class."
+--
+-- This is optimistic by design. There is no way to test a Java object for a
+-- member without indexing it, and indexing a missing member is precisely the
+-- thing that floods the log. So callers assume the member is there, ERCompat.call
+-- finds out for real, and the answer here is correct from the second call on.
+-- Every call site follows a true answer with a call, so one wasted attempt per
+-- class per member is the whole cost.
 function ERCompat.has(obj, name)
     if obj == nil or name == nil then return false end
-    local cacheKey = nil
-    local ok, tn = pcall(function() return type(obj) end)
-    if ok and tn == "userdata" then
-        -- Java object: cache per class where we can get one, else per-name only.
-        local ok2, cls = pcall(function() return obj:getClass():getName() end)
-        cacheKey = (ok2 and cls or "userdata") .. "#" .. name
-    end
-    if cacheKey and ERCompat._methodCache[cacheKey] ~= nil then
-        return ERCompat._methodCache[cacheKey]
-    end
-    local okIndex, member = pcall(function() return obj[name] end)
-    local result = okIndex and member ~= nil
-    if cacheKey then ERCompat._methodCache[cacheKey] = result end
-    if not result then noteMissing(tostring(cacheKey or name)) end
-    return result
+    return not isKnownBad(obj, name)
 end
 
 --- Safe method invocation. Returns ok, value.
--- Never propagates an error out of the game API.
+-- Never propagates an error out of the game API, and never attempts the same
+-- missing member twice on the same class.
 function ERCompat.call(obj, name, ...)
-    if not ERCompat.has(obj, name) then return false, nil end
+    if obj == nil or name == nil then return false, nil end
+    if isKnownBad(obj, name) then return false, nil end
     local args = { ... }
     local n = select("#", ...)
     local ok, res = pcall(function()
@@ -71,7 +134,7 @@ function ERCompat.call(obj, name, ...)
         end
     end)
     if not ok then
-        noteMissing(tostring(name) .. "()")
+        markBad(obj, name)
         return false, nil
     end
     return true, res
