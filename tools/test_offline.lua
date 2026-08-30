@@ -367,6 +367,47 @@ local unknownCmd = ERNet.dispatch(p, "notARealCommand", {})
 check("an unknown command returns nil rather than erroring", unknownCmd == nil)
 
 -- ---------------------------------------------------------------------------
+section("UI crash containment")
+-- ---------------------------------------------------------------------------
+-- Regression test for the bug that made the game unclickable: an error thrown
+-- from one of our render methods reached Project Zomboid's UI loop, filling the
+-- console at frame rate and stopping mouse dispatch for the whole game.
+-- ERUI.protect must make that impossible.
+ERClient = ERClient or {}
+dofile(ROOT .. "client/UI/ERUI.lua")
+
+local Widget = { Type = "TestWidget" }
+Widget.__index = Widget
+function Widget:render() error("boom") end
+function Widget:onMouseDown(x, y) error("boom") end
+function Widget:prerender() return "fine" end
+
+ERUI.protect(Widget, ERUI.ENTRY_POINTS)
+local w = setmetatable({}, Widget)
+
+local ok = pcall(function() w:render() end)
+check("a throwing render does not escape into the engine", ok == true)
+local ok2, consumed = pcall(function() return w:onMouseDown(1, 1) end)
+check("a throwing mouse handler does not escape", ok2 == true)
+eq("a failed mouse handler reports the click as unconsumed", consumed, false)
+eq("a healthy method still returns its value", w:prerender(), "fine")
+
+check("protect is idempotent", (function()
+    ERUI.protect(Widget, ERUI.ENTRY_POINTS)
+    return pcall(function() w:render() end) == true
+end)())
+
+-- Persistent failure must switch the interface off rather than keep spamming.
+for _ = 1, 40 do pcall(function() w:render() end) end
+check("persistent UI errors disable the interface", ERUI.disabled == true)
+eq("a disabled interface stops calling through", w:prerender(), false)
+
+-- Gameplay must be untouched by a disabled interface.
+p._md.ERLeveling.heldRunes = 0
+ERRunes.credit(p, 25, "kill")
+eq("runes still credit with the interface disabled", ERData.runes(p), 25)
+ERUI.disabled = false
+
 print("")
 print(string.rep("=", 62))
 print(string.format("%d checks, %d failures", checks, failures))

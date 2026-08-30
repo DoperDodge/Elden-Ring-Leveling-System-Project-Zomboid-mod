@@ -45,7 +45,7 @@ Sandbox_EN = {
     Sandbox_ERLeveling_RuneArcSpawnRate_tooltip = "Scales how often Rune Arcs, Golden Runes, Larval Tears and Grace Idols appear in loot. 0 disables them entirely.",
 
     Sandbox_ERLeveling_ShowYouDied = "Show the YOU DIED overlay",
-    Sandbox_ERLeveling_ShowYouDied_tooltip = "A brief black fade with YOU DIED before the normal death screen.",
+    Sandbox_ERLeveling_ShowYouDied_tooltip = "A brief black fade with YOU DIED before the normal death screen. Off by default: it is the only full-screen overlay the mod draws, and a full-screen overlay is the one thing that can swallow mouse clicks. Turn it on once you are happy the mod behaves on your build.",
     Sandbox_ERLeveling_ShowHudCounter = "Always show the rune counter on screen",
     Sandbox_ERLeveling_ShowHudCounter_tooltip = "Off by default because the Project Zomboid HUD is already crowded. The counter is always visible on the Health tab and the Runes tab.",
     Sandbox_ERLeveling_EnableSounds = "Play mod sounds",

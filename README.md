@@ -190,7 +190,7 @@ All under the **Elden Ring Leveling** page in sandbox settings.
 | Option | Default | What it does |
 |---|---|---|
 | `RuneArcSpawnRate` | 1.0 | Scales every rune item's spawn rate. 0 removes them. |
-| `ShowYouDied` | on | The black fade and **YOU DIED** before the normal death screen. |
+| `ShowYouDied` | **off** | The black fade and **YOU DIED** before the normal death screen. Off by default: it is the only full-screen overlay the mod draws, and a full-screen overlay is the one thing that can swallow mouse clicks. Turn it on once you are happy the mod behaves on your build. |
 | `ShowHudCounter` | off | A persistent rune counter on the HUD. Off because the Zomboid HUD is crowded; the count is always on both panels anyway. |
 | `EnableSounds` | on | Level-up and reclaim sounds. |
 | `AllowPerkGrants` | on | Only used on builds without a direct carry-weight API. See below. |
@@ -229,6 +229,21 @@ disappears with the mod; saves stay loadable.
   relevant checks. Run `ERDebug.compat()` to see what your build supports.
 * The mod has been validated by an offline test suite and static analysis, but
   see `NOTES.md` §5 for exactly what has and has not been exercised in-game.
+
+### If the interface misbehaves
+
+Every method Project Zomboid can call on this mod's widgets is wrapped, so a
+drawing bug is caught and contained rather than thrown into the engine. If the
+same one keeps failing, the mod switches its own interface off and says so in
+`console.txt`:
+
+```
+[ERLeveling] Disabling the rune interface for this session: too many UI errors
+```
+
+Runes, levelling and bloodstains keep working when that happens — only the drawing
+stops. If you see it, the lines above it in `console.txt` name the failing widget;
+please report them.
 
 ---
 

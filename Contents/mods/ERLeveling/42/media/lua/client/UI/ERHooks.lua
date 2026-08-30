@@ -159,8 +159,13 @@ local function wrap(class, methodName, after)
     local original = class[methodName]
     class[methodName] = function(self, ...)
         local result = original(self, ...)
+        -- Throttled: this runs inside render() for some hooks, so an unthrottled
+        -- print here fills console.txt at frame rate (PLAN.md 15.1, 1.7).
         local ok, err = pcall(after, self)
-        if not ok then log("hook error in " .. methodName .. ": " .. tostring(err)) end
+        if not ok then
+            ERCompat.throttledError("hook " .. methodName, err)
+            ERUI.uiError("hook " .. methodName, err)
+        end
         return result
     end
     return true
@@ -168,6 +173,7 @@ end
 
 function ERHooks.install()
     if ERHooks.installed then return end
+    ERUI.protectAll()
 
     local okWindow = false
     if _G["ISCharacterInfoWindow"] ~= nil then

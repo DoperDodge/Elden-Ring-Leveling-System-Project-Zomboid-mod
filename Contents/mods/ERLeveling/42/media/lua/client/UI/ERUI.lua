@@ -33,6 +33,100 @@ function ERUI.tex(name)
 end
 
 -- ---------------------------------------------------------------------------
+-- Crash containment
+-- ---------------------------------------------------------------------------
+-- PLAN.md 1.7: "Every unfinished path returns safely rather than erroring. A Lua
+-- error in PZ spams the console every tick and can soft-lock the UI."
+--
+-- The hooks in ERHooks.lua were pcall-wrapped from the start, but the render and
+-- mouse methods of our own widgets were not, and Project Zomboid calls those
+-- directly. A throw inside one of them lands in the middle of the engine's UI
+-- loop: the console fills at frame rate, and mouse-event dispatch for the whole
+-- UI can stop, which takes the game with it - you cannot click the UI or the
+-- world. That is exactly the soft-lock the plan named.
+--
+-- ERUI.protect() closes that hole. Every method PZ can call into is wrapped so a
+-- failure is caught, throttled and contained. If one keeps failing, the whole rune
+-- UI switches itself off rather than making the game unplayable.
+
+ERUI.disabled = false
+ERUI._errorCounts = ERUI._errorCounts or {}
+ERUI._totalErrors = 0
+
+local MAX_ERRORS_PER_SITE = 3
+local MAX_ERRORS_TOTAL = 25
+
+--- Record a UI failure. Disables the mod's UI entirely once it is clear something
+-- is persistently broken, so a bug degrades to "no rune UI" and never to
+-- "unplayable game".
+function ERUI.uiError(where, err)
+    local key = tostring(where)
+    local n = (ERUI._errorCounts[key] or 0) + 1
+    ERUI._errorCounts[key] = n
+    ERUI._totalErrors = ERUI._totalErrors + 1
+
+    if n <= MAX_ERRORS_PER_SITE then
+        print("[ERLeveling] UI error in " .. key .. ": " .. tostring(err))
+        if n == MAX_ERRORS_PER_SITE then
+            print("[ERLeveling] further errors from " .. key .. " suppressed.")
+        end
+    end
+
+    if ERUI._totalErrors >= MAX_ERRORS_TOTAL and not ERUI.disabled then
+        ERUI.disable("too many UI errors")
+    end
+end
+
+--- Switch the mod's interface off for the rest of the session. Gameplay - runes,
+-- levelling, bloodstains - keeps working; only the drawing stops.
+function ERUI.disable(reason)
+    if ERUI.disabled then return end
+    ERUI.disabled = true
+    print("[ERLeveling] ==============================================================")
+    print("[ERLeveling] Disabling the rune interface for this session: " .. tostring(reason))
+    print("[ERLeveling] Runes, levelling and bloodstains keep working; only the")
+    print("[ERLeveling] on-screen interface has been switched off, so a bug in our")
+    print("[ERLeveling] drawing code cannot take your input with it.")
+    print("[ERLeveling] Please report the errors above.")
+    print("[ERLeveling] ==============================================================")
+    -- Take our overlays back out of the UI manager immediately.
+    pcall(function() if ERBloodstainUI and ERBloodstainUI.destroy then ERBloodstainUI.destroy() end end)
+    pcall(function() if ERRunePopup and ERRunePopup.destroy then ERRunePopup.destroy() end end)
+    pcall(function() if ERYouDied and ERYouDied.hide then ERYouDied.hide() end end)
+end
+
+--- Wrap the named methods of a widget class so they can never throw into the
+-- engine. Render methods return nothing on failure; mouse handlers return false,
+-- which tells Project Zomboid we did not consume the click.
+function ERUI.protect(class, names)
+    if class == nil then return end
+    for i = 1, #names do
+        local name = names[i]
+        local original = class[name]
+        if type(original) == "function" and not class["_erProtected_" .. name] then
+            local label = tostring(class.Type or "ERWidget") .. ":" .. name
+            class[name] = function(self, a, b, c, d)
+                if ERUI.disabled then return false end
+                local ok, result = pcall(original, self, a, b, c, d)
+                if not ok then
+                    ERUI.uiError(label, result)
+                    return false
+                end
+                return result
+            end
+            class["_erProtected_" .. name] = true
+        end
+    end
+end
+
+--- The full set of entry points Project Zomboid can call on a widget.
+ERUI.ENTRY_POINTS = {
+    "render", "prerender", "onMouseDown", "onMouseUp", "onRightMouseDown",
+    "onRightMouseUp", "onMouseWheel", "onMouseMove", "onMouseMoveOutside",
+    "onMouseDownOutside", "createChildren", "onResolutionChange", "onResize",
+}
+
+-- ---------------------------------------------------------------------------
 -- Fonts
 -- ---------------------------------------------------------------------------
 -- PLAN.md 2.3 asks which font constants exist. Rather than assume, probe once and
@@ -219,3 +313,30 @@ function ERUI.showYouDied(dropped)
         ERYouDied.show(dropped)
     end
 end
+
+-- ---------------------------------------------------------------------------
+-- Applying the protection
+-- ---------------------------------------------------------------------------
+-- Project Zomboid loads client/UI alphabetically, so this file loads after some
+-- widget classes and before others. Rather than each file protecting itself, the
+-- whole set is protected from one place on OnGameStart. Instances resolve their
+-- methods through the class table at call time, so widgets created before or
+-- after this runs both get the wrapped versions.
+ERUI.PROTECTED_CLASSES = {
+    "ERLevelPanel", "ERStatRow", "ERTooltipLayer", "ERRuneStrip",
+    "ERRuneHud", "ERBloodstainOverlay", "ERYouDiedPanel", "ERWindow",
+}
+
+function ERUI.protectAll()
+    for i = 1, #ERUI.PROTECTED_CLASSES do
+        local name = ERUI.PROTECTED_CLASSES[i]
+        local class = _G[name]
+        if class ~= nil then
+            ERUI.protect(class, ERUI.ENTRY_POINTS)
+        end
+    end
+end
+
+ERCompat.onEvent("OnGameStart", function()
+    ERUI.protectAll()
+end)

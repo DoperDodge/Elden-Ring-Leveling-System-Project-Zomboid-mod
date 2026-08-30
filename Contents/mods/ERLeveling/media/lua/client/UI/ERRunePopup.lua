@@ -31,6 +31,7 @@ function ERRunePopup.push(amount, isReclaim)
     ERRunePopup._lastPushAt = now
     ERRunePopup._startedAt = now
     if isReclaim then ERRunePopup._reclaim = true end
+    ERRunePopup.setAdded(true)
 end
 
 -- ---------------------------------------------------------------------------
@@ -52,6 +53,10 @@ function ERRuneHud:onResolutionChange(oldW, oldH, newW, newH)
     self:setX(newW - self.width - 24)
     self:setY(newH - self.height - 120)
 end
+
+function ERRuneHud:onMouseDown(x, y) return false end
+function ERRuneHud:onRightMouseDown(x, y) return false end
+function ERRuneHud:onMouseUp(x, y) return false end
 
 function ERRuneHud:render()
     local C = ERBalance.COLOR
@@ -99,6 +104,35 @@ function ERRuneHud:render()
     end
 end
 
+-- Lifecycle. Like the bloodstain marker, this element is only in the UI manager
+-- while it has something to draw: a live popup, or the optional HUD counter. An
+-- element sitting permanently in the UI manager is an element that can swallow
+-- clicks, and this one lives in the bottom-right corner where the vanilla HUD is.
+ERRunePopup._added = false
+
+function ERRunePopup.setAdded(wanted)
+    if ERUI.disabled then wanted = false end
+    if wanted == ERRunePopup._added then return end
+    local el = ERRunePopup.element
+    if el == nil then return end
+    if wanted then
+        pcall(function() el:addToUIManager() end)
+    else
+        pcall(function() el:removeFromUIManager() end)
+    end
+    ERRunePopup._added = wanted
+end
+
+--- True when there is a reason to be on screen at all.
+function ERRunePopup.wanted()
+    if ERBalance.sv("ShowHudCounter") then return true end
+    if ERRunePopup._amount > 0
+       and (ERUtil.nowMs() - ERRunePopup._startedAt) < ERBalance.UI.popupFadeMs then
+        return true
+    end
+    return false
+end
+
 function ERRunePopup.create()
     if ERRunePopup.element ~= nil then return end
     local ok, el = pcall(function()
@@ -106,14 +140,29 @@ function ERRunePopup.create()
         e:initialise()
         e:instantiate()
         e:setAlwaysOnTop(false)
-        e:addToUIManager()
         -- Purely decorative: must never take the mouse away from the game.
         if e.setCapture then pcall(function() e:setCapture(false) end) end
+        if e.setConsumeMouseEvents then pcall(function() e:setConsumeMouseEvents(false) end) end
         return e
     end)
     if ok then ERRunePopup.element = el end
 end
 
+function ERRunePopup.destroy()
+    ERRunePopup.setAdded(false)
+    ERRunePopup.element = nil
+end
+
 ERCompat.onEvent("OnGameStart", function()
     ERRunePopup.create()
+    ERRunePopup.setAdded(ERRunePopup.wanted())
+end)
+
+-- Cheap: a boolean compare a few times a second, and add/remove only on change.
+local popupTick = 0
+ERCompat.onEvent("OnPlayerUpdate", function(player)
+    popupTick = popupTick + 1
+    if popupTick < 15 then return end
+    popupTick = 0
+    ERRunePopup.setAdded(ERRunePopup.wanted())
 end)
