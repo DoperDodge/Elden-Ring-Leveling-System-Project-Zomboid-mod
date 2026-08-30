@@ -101,10 +101,19 @@ about to buy before you pay for it.
 
 You can only spend runes at a Grace. A square counts when any of these is true:
 
-* a **lit campfire** within 3 tiles
-* a **lit fireplace, stove or oven** within 2 tiles
-* a **Grace Idol** within 4 tiles, placed or carried
-* you are **resting** — sleeping or sitting
+| | |
+|---|---|
+| **Sit or sleep** | Anywhere. The easiest one by far — sit on a chair, sit on the ground, or be asleep. |
+| **A lit fire within 3 tiles** | Campfire, or anything burning. |
+| **A lit fireplace, stove, oven or BBQ within 2 tiles** | It must actually be **lit** — a cold hearth is not a Grace. |
+| **A Grace Idol within 4 tiles** | Placed on the ground or carried in your inventory. |
+
+Fastest route on a fresh character: **sit down**. Failing that, light the stove in
+any house, or the BBQ in half the back gardens in Knox County.
+
+If the header still reads `AWAY FROM GRACE` when you think it shouldn't, run
+`ERDebug.grace()` in the console — it prints exactly what it checked and why it
+said no.
 
 The Runes tab header reads `AT A SITE OF GRACE` in gold when you are, and
 `AWAY FROM GRACE` in grey when you are not. Turn the whole requirement off with
