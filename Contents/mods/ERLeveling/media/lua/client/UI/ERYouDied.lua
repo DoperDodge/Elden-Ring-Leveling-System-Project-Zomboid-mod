@@ -78,6 +78,7 @@ end
 -- a later "died" reply fills it in.
 function ERYouDied.show(dropped)
     if not ERBalance.sv("ShowYouDied") then return end
+    if ERUI.disabled then return end
     local ok = pcall(function()
         if ERYouDied.element == nil then
             local e = ERYouDiedPanel:new()
@@ -100,3 +101,16 @@ function ERYouDied.hide()
     pcall(function() ERYouDied.element:removeFromUIManager() end)
     ERYouDied.element = nil
 end
+
+ERYouDied.destroy = ERYouDied.hide
+
+-- Belt and braces: this is the only full-screen element the mod still creates,
+-- and a full-screen element left in the UI manager is one that can swallow
+-- clicks. If anything stops render() from reaching its own timeout - an error,
+-- a load, a respawn - these take it out anyway.
+ERCompat.onEvent("OnCreatePlayer", function()
+    ERYouDied.hide()
+end)
+ERCompat.onEvent("OnGameStart", function()
+    ERYouDied.hide()
+end)

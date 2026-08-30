@@ -221,6 +221,64 @@ confirmed, so all three fallbacks ship together:
 
 No in-game map marker: no map-annotation API could be confirmed. [OPEN]
 
+### 2.8b The UI soft-lock, and what it changed
+
+**First in-game report: the mod loaded, the rune strip drew, and then the game
+became unclickable.** Errors filled `console.txt` and neither the UI nor the world
+would take a left or right click.
+
+PLAN.md 1.7 names this exact outcome: *"A Lua error in PZ spams the console every
+tick and can soft-lock the UI."* The plan's own answer - a `pcall` around every
+hook body - was implemented, but only for the hooks. The `render`, `prerender` and
+`onMouse*` methods of our own widgets were left bare, and Project Zomboid calls
+those directly. A throw in one of them lands inside the engine's UI loop, where it
+both prints at frame rate and can stop mouse dispatch for everything.
+
+Compounding it, `ERBloodstainOverlay` was a **full-screen** `ISUIElement` added to
+the UI manager at `OnGameStart` and left there for the session, whether or not the
+player had a bloodstain. A full-screen element sits over the entire game and is a
+standing invitation to swallow every click.
+
+Three changes:
+
+1. **`ERUI.protect()`** wraps every method Project Zomboid can call on our widgets.
+   A failure is caught, throttled to three prints per site, and contained; mouse
+   handlers return `false`, telling the engine we did not consume the click. After
+   25 total failures `ERUI.disable()` switches the whole interface off with one
+   clear message. Gameplay - runes, levelling, bloodstains - keeps running. A bug
+   in our drawing code can now cost the rune UI and nothing else, which is what
+   PLAN.md 1.7 asked for in the first place.
+
+2. **No idle full-screen elements.** The bloodstain marker is now a 170x70 box that
+   moves itself to where the marker belongs and is in the UI manager *only while a
+   bloodstain exists*. The rune popup is likewise only present while it has a
+   popup to draw or the HUD counter is enabled. Both also call `setCapture(false)`
+   and `setConsumeMouseEvents(false)` where those exist.
+
+3. **`ShowYouDied` now defaults to off.** It is the only full-screen overlay left,
+   and PLAN.md 7.4 is explicit: *"Must not block or break the vanilla death flow -
+   if it risks that, make it default off and say so."* Before this report that risk
+   was hypothetical. It is not any more, so the plan's instruction applies. It can
+   be switched back on per-world once someone confirms input survives it.
+
+`tools/test_offline.lua` gained a regression test for the containment itself: a
+widget whose `render` and `onMouseDown` always throw must not propagate, must
+report clicks as unconsumed, must stop printing after three, must disable the
+interface once it is clearly broken, and must leave rune crediting working.
+
+The honest read: the hooks were guarded because the plan said to guard them, and
+the widgets were not because the plan did not spell that out. The rule was
+"nothing of ours may throw into the engine", and it was applied to the examples
+rather than to the rule.
+
+### 2.8c The rune strip sat on top of vanilla text
+
+Same report. The strip pinned itself to `height - stripHeight`, which is exactly
+where the vanilla health panel draws its "Right click to show Treatment menu"
+line, so the two composited into one unreadable line. The strip now reserves that
+last text line and sits above it, and paints its own opaque ground rather than
+trusting whatever was drawn underneath.
+
 ### 2.9 The rune strip is a child panel, repositioned in a `render` wrap
 
 As PLAN.md §7.1 asks. The wrap also subtracts the host's scroll offset (when

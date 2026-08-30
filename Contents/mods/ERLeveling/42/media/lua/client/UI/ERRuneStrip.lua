@@ -25,14 +25,20 @@ function ERRuneStrip:new(parent, playerNum)
     return o
 end
 
---- Re-pin to the bottom of the host panel. Called every render because the
--- character window is resizable.
+--- Re-pin to the host panel. Called every render because the character window
+-- is resizable.
+--
+-- The strip sits one text line ABOVE the bottom edge, not on it: the vanilla
+-- health panel draws "Right click to show Treatment menu" along its last line,
+-- and the first build of this strip landed straight on top of it, so the two
+-- read as one garbled line. That line is left alone.
 function ERRuneStrip:reposition()
     if self.host == nil then return end
     local h = ERBalance.UI.stripHeight
+    local reserved = ERUI.textHeight(ERUI.font("small")) + 6   -- the vanilla hint line
     self:setWidth(self.host.width)
     self:setX(0)
-    self:setY(math.max(0, self.host.height - h))
+    self:setY(math.max(0, self.host.height - h - reserved))
     self:setHeight(h)
 end
 
@@ -42,8 +48,14 @@ function ERRuneStrip:render()
     local font = ERUI.font("small")
     local ty = math.floor((self.height - ERUI.textHeight(font)) / 2)
 
-    -- Top rule, so the strip reads as a separate band from the body-part list.
+    -- Paint our own opaque ground first rather than relying on ISPanel's
+    -- background having been drawn underneath: whatever the vanilla panel drew
+    -- in this band must not show through our text.
+    ERUI.rect(self, 0, 0, self.width, self.height, C.bgSolid, 0.96)
+
+    -- Rules top and bottom, so the strip reads as its own band.
     ERUI.rect(self, 0, 0, self.width, 1, snap.grace and C.gold or C.goldDim, 0.6)
+    ERUI.rect(self, 0, self.height - 1, self.width, 1, C.goldDim, 0.35)
 
     ERUI.runeIcon(self, 8, math.floor((self.height - 11) / 2), 11, 1.0)
     ERUI.text(self, ERStats.comma(snap.runes or 0), 26, ty, C.gold, 1.0, font)

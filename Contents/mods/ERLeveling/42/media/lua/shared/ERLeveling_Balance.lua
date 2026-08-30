@@ -211,7 +211,7 @@ ERBalance.SANDBOX_DEFAULTS = {
     BloodstainPersists      = true,
     AnyoneCanLootBloodstain = false,
     KeepStatsOnDeath        = false,
-    ShowYouDied             = true,
+    ShowYouDied             = false,   -- see NOTES.md: full-screen overlays can eat clicks
     ShowHudCounter          = false,
     AllowRespec             = 2,      -- 1 = Never, 2 = LarvalTear, 3 = Free
     RuneArcSpawnRate        = 1.0,

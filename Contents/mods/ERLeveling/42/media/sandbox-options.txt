@@ -105,7 +105,7 @@ option ERLeveling.RuneArcSpawnRate
 
 option ERLeveling.ShowYouDied
 {
-    type = boolean, default = true,
+    type = boolean, default = false,
     page = ERLeveling, translation = ERLeveling_ShowYouDied,
 }
 
