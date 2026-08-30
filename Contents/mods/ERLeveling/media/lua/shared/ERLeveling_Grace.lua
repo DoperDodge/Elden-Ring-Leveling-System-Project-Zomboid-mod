@@ -20,6 +20,9 @@ ERGrace = ERGrace or {}
 ERGrace.HEAT_SPRITES = {
     "campfire", "fireplace", "stove", "oven", "firepit", "camping_01",
     "brazier", "hearth", "furnace",
+    -- A lit barbecue is a fire you can warm your hands at, and it is one of the
+    -- few heat sources a fresh survivor can reach without crafting anything.
+    "bbq", "barbecue", "grill", "camping_02",
 }
 
 -- Every member read here goes through ERCompat rather than a bare pcall, and the
@@ -49,12 +52,32 @@ end
 -- Returns true only when we can positively confirm both "heat source" and "lit".
 -- An object that looks like a fireplace but exposes no lit state is treated as
 -- unlit: a cold hearth is not a Grace.
+-- instanceof() is called for every object on every square of every scan. If the
+-- class name is not one this build knows, that is a throw per object per scan -
+-- and Project Zomboid logs a caught throw too (see ERLeveling_Compat.lua). Probe
+-- it once and remember the answer.
+ERGrace._instanceofOk = nil
+
+local function isFireObject(obj)
+    if ERGrace._instanceofOk == false then return false end
+    local ok, isFire = pcall(function() return instanceof(obj, "IsoFire") end)
+    if not ok then
+        if ERGrace._instanceofOk == nil then
+            print("[ERLeveling] instanceof(IsoFire) is unavailable on this build; "
+                  .. "Grace detection falls back to sprite names.")
+        end
+        ERGrace._instanceofOk = false
+        return false
+    end
+    ERGrace._instanceofOk = true
+    return isFire == true
+end
+
 local function isLitHeatSource(obj)
     if obj == nil then return false end
 
     -- Signal B: a live IsoFire on the square is unambiguous.
-    local okInst, isFire = pcall(function() return instanceof(obj, "IsoFire") end)
-    if okInst and isFire then return true end
+    if isFireObject(obj) then return true end
 
     if not spriteLooksLikeHeat(obj) then return false end
 
