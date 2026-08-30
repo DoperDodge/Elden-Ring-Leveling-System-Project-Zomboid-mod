@@ -57,6 +57,34 @@ echo "    $OUT"
 # --- Build 42: versioned layout -------------------------------------------
 # Both trees are committed (see tools/sync_versioned.sh for why), so this only
 # has to confirm the generated one has not drifted from its source.
+# --- static lints ----------------------------------------------------------
+# Both of these encode bugs that actually shipped; see NOTES.md.
+echo "==> static lints"
+
+# 1. Kahlua cannot index the object a Class-name lookup returns. The call throws,
+#    a pcall catches it, and Project Zomboid logs a full stack trace anyway - on
+#    a per-tick path that buries console.txt at frame rate.
+if grep -rn ":getClass(" "$SRC/media/lua" >/dev/null 2>&1; then
+    echo "    FAIL: a Class-name lookup is back in the source:" >&2
+    grep -rn ":getClass(" "$SRC/media/lua" >&2
+    exit 1
+fi
+echo "    no Class-name lookups"
+
+# 2. client/UI loads alphabetically, so any file sorting before ERUI.lua that
+#    touches ERUI at file scope errors out and takes its whole file with it -
+#    which is how the Runes tab and the rune strip once vanished entirely.
+lint_fail=0
+for f in "$SRC"/media/lua/client/UI/*.lua; do
+    base="$(basename "$f")"
+    if [[ "$base" < "ERUI.lua" ]] && grep -q "^ERUI\." "$f"; then
+        echo "    FAIL: $base uses ERUI at file scope but loads before ERUI.lua" >&2
+        lint_fail=1
+    fi
+done
+[ "$lint_fail" = "0" ] || exit 1
+echo "    no file-scope use of ERUI before it loads"
+
 echo "==> checking the Build 42 subtree"
 "$ROOT/tools/sync_versioned.sh" --check
 

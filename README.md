@@ -230,6 +230,18 @@ disappears with the mod; saves stay loadable.
 * The mod has been validated by an offline test suite and static analysis, but
   see `NOTES.md` §5 for exactly what has and has not been exercised in-game.
 
+### A note on console.txt
+
+Project Zomboid logs a Java exception **even when Lua catches it**. A caught error
+is still ~30 lines of stack trace in `console.txt`. That means a mod that probes
+the game's API by trying calls and catching failures pays a stack trace for every
+*failed* probe — and on a per-tick path, one per frame.
+
+This mod therefore never indexes a game object to test whether a member exists. It
+calls it for real inside a `pcall`, and remembers every (class, member) that
+failed, so a member your build does not have costs one logged trace for the whole
+session rather than one per call. `ERDebug.compat()` lists what it found missing.
+
 ### If the interface misbehaves
 
 Every method Project Zomboid can call on this mod's widgets is wrapped, so a

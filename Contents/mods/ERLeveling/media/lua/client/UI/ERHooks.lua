@@ -164,7 +164,9 @@ local function wrap(class, methodName, after)
         local ok, err = pcall(after, self)
         if not ok then
             ERCompat.throttledError("hook " .. methodName, err)
-            ERUI.uiError("hook " .. methodName, err)
+            if ERUI ~= nil and ERUI.uiError ~= nil then
+                ERUI.uiError("hook " .. methodName, err)
+            end
         end
         return result
     end
@@ -173,7 +175,12 @@ end
 
 function ERHooks.install()
     if ERHooks.installed then return end
-    ERUI.protectAll()
+    -- Project Zomboid loads client/UI alphabetically, so ERUI.lua has NOT been
+    -- loaded when this file runs install() at the bottom. Referencing it
+    -- unguarded errors at file scope, which aborts this whole file and takes the
+    -- Runes tab and the rune strip with it. ERUI protects the widget classes
+    -- itself on OnGameStart; this is only the earlier of the two chances.
+    if ERUI ~= nil and ERUI.protectAll ~= nil then ERUI.protectAll() end
 
     local okWindow = false
     if _G["ISCharacterInfoWindow"] ~= nil then
