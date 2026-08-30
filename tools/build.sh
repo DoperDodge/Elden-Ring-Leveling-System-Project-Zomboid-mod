@@ -85,6 +85,24 @@ done
 [ "$lint_fail" = "0" ] || exit 1
 echo "    no file-scope use of ERUI before it loads"
 
+# 3. Every effect declared in ERBalance.EFFECTS must actually be read somewhere.
+#    A tuning number nothing consumes is a feature the docs promise and the game
+#    does not deliver; four of them shipped that way once.
+BAL="$SRC/media/lua/shared/ERLeveling_Balance.lua"
+declared=$(sed -n '/^ERBalance.EFFECTS = {/,/^}/p' "$BAL" \
+           | grep -oE "^        [a-zA-Z]+" | tr -d ' ' | sort -u)
+orphans=""
+for key in $declared; do
+    if ! grep -rq "\"$key\"" "$SRC/media/lua" --include=*.lua; then
+        orphans="$orphans $key"
+    fi
+done
+if [ -n "$orphans" ]; then
+    echo "    FAIL: effects declared but never read:$orphans" >&2
+    exit 1
+fi
+echo "    every declared effect has a call site"
+
 echo "==> checking the Build 42 subtree"
 "$ROOT/tools/sync_versioned.sh" --check
 
