@@ -1,0 +1,8 @@
+name=Tarnished - Elden Ring Leveling
+id=ERLeveling
+description=Zombies drop Runes. Spend them at a Site of Grace to raise eight Elden Ring attributes, each with real mechanical effects. Die and you drop every rune you were carrying at the spot you fell - walk back and reclaim them, or die again and lose them forever. Fully server-authoritative for multiplayer.
+poster=poster.png
+icon=poster.png
+author=DoperDodge
+url=https://github.com/DoperDodge/Elden-Ring-Leveling-System-Project-Zomboid-mod
+modversion=1.0.0
