@@ -141,7 +141,7 @@ one, exactly like Elden Ring.
 | **Strength** | More melee damage, more carry weight |
 | **Dexterity** | Faster recovery between swings, quicker reloads, gentler weapon wear |
 | **Intelligence** | Every skill you practise is learned faster |
-| **Faith** | Dressings and medicine work harder; sickness loosens its grip |
+| **Faith** | Wounds you have bandaged close faster each minute; sickness loosens its grip |
 | **Arcane** | More runes from the dead; the world yields a little more |
 
 Attributes run **1–99** on their own scale and are **not** Project Zomboid perks —
