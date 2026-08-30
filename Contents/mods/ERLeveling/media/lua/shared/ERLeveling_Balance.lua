@@ -39,14 +39,20 @@ ERBalance.STATS = {
 -- Stat effect envelopes
 -- ---------------------------------------------------------------------------
 -- Each entry is { base, max }. The realised value is
---     base + (max - base) * ERStats.scale(statValue) * EffectStrength
--- so `base` is what a stat of 1 gives and `max` is what 99 gives at
+--     base + (max - base) * ERStats.progress(statValue) * EffectStrength
+-- so `base` is what a fresh character gets and `max` is what 99 gives at
 -- EffectStrength = 1.0. See ERStats.effect().
+--
+-- EVERY ENTRY HERE MUST HAVE A CALL SITE. Four once did not - a Vigor infection
+-- resistance that contradicted the mod's own promise never to touch
+-- zombification, a Strength shove bonus, an Intelligence reading speed and a
+-- Faith moodle decay - and the README described all of them as working features.
+-- A number in this table that nothing reads is a lie told to the player, so
+-- tools/build.sh now fails the build if one appears.
 ERBalance.EFFECTS = {
     vig = {
         damageNegation   = { 0.00, 0.45 },   -- fraction of incoming damage removed
         regenPerTenMin   = { 0.00, 1.60 },   -- body-part health restored per 10 in-game minutes
-        infectionResist  = { 0.00, 0.20 },   -- multiplier off zombification advance (see NOTES)
     },
     mnd = {
         panicReduction   = { 0.00, 0.75 },   -- fraction of panic scrubbed each minute
@@ -63,7 +69,6 @@ ERBalance.EFFECTS = {
     str = {
         meleeDamage      = { 0.00, 1.10 },   -- +110% weapon damage at 99
         carryWeight      = { 0.00, 12.00 },  -- kg added to max carry weight
-        knockback        = { 0.00, 0.60 },   -- fraction of push/shove failures converted to success
     },
     dex = {
         recoilCut        = { 0.00, 0.35 },   -- fraction off recoil delay (swing recovery)
@@ -72,13 +77,11 @@ ERBalance.EFFECTS = {
     },
     int = {
         xpMultiplier     = { 0.00, 1.00 },   -- +100% skill XP at 99
-        readSpeed        = { 0.00, 0.50 },
         perkBoost        = { 0.00, 2.00 },   -- fallback global XP boost, floored to 0..3
     },
     fth = {
         healingPower     = { 0.00, 1.00 },   -- +100% effect from bandages/pills
         sicknessResist   = { 0.00, 0.60 },   -- fraction of foodSickness/illness scrubbed per minute
-        moodleDecay      = { 0.00, 0.40 },
     },
     arc = {
         runeFind         = { 0.00, 1.00 },   -- +100% runes at 99

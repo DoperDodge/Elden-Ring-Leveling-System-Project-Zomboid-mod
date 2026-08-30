@@ -480,6 +480,34 @@ someone can confirm how inventories replicate on a real server. [OPEN]
 
 ---
 
+## 3.10 Four effects were declared and never read
+
+Asked what Mind, Dexterity and Intelligence do, checking the code rather than the
+design doc turned up something worse than an unclear answer: `ERBalance.EFFECTS`
+declared four effects that **no code anywhere reads**.
+
+| Declared | Status |
+|---|---|
+| `vig.infectionResist` | never read - and it contradicted the mod's own promise never to touch zombification |
+| `str.knockback` | never read |
+| `int.readSpeed` | never read |
+| `fth.moodleDecay` | never read |
+
+All four were removed rather than implemented: implementing them needs APIs that
+could not be verified, and `vig.infectionResist` should never have been written
+down at all given PLAN.md 3.1 says explicitly that Faith "does not cure
+zombification" and this mod extends that to every attribute.
+
+The failure worth recording is not the dead code, it is that **the user-facing
+manual described two of them as working features** - Strength converting failed
+shoves into successes, Intelligence speeding up reading. A tuning number that
+nothing consumes is a lie told to the player, and the docs were written from the
+balance table rather than from the call sites.
+
+`tools/build.sh` now fails the build if any effect in `ERBalance.EFFECTS` has no
+call site. Verified by reintroducing `int.readSpeed` and confirming the build
+rejects it.
+
 ## 4. Tuning changed from the plan
 
 * Effect envelopes (`ERBalance.EFFECTS`) are new — PLAN.md §3.1 describes the
