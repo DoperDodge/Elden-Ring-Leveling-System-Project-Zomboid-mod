@@ -55,33 +55,53 @@ test suite but never by Project Zomboid itself.**
 The Lua is written against the intersection of what both builds plausibly expose,
 with runtime probes wherever they diverge.
 
-**Revised after the first install attempt.** The shipped folder originally carried
-only the flat Build 41 layout, on the reasoning that Build 42 still loads it and
-that duplicating every file in git was not worth it. That was the wrong trade: the
-mod did not appear in the mod list at all on the reporter's machine, and a mod
-carrying no `pzversion` can be filtered out of Build 42's list as an untagged
-legacy mod. Correctness for the person installing it beats a tidy repository.
+**Revised twice, after the mod failed to appear in the Build 42 mod list.**
 
-The folder now carries **both** layouts at once:
+The folder originally carried only the flat Build 41 layout, on the reasoning that
+Build 42 still loads it and that duplicating every file in git was not worth it.
+Both halves of that reasoning were wrong.
+
+The first revision guessed at the cause — a missing `pzversion` letting B42 filter
+the mod out as untagged — and added a `42/` subtree plus version keys. That was a
+guess, and only part of the answer. Checking the actual sources (the PZ wiki, the
+Build 42 mod-updating guide, and a Steam support thread describing this exact
+symptom) gives the real rule:
+
+> Build 42 expects a version folder (`42/`) containing `mod.info`, `poster.png`
+> **and** `media/`, alongside a `common/` folder that must exist even when empty.
+> A mod with `media/` only at the root does not appear in the B42 mod list at all —
+> no error, no warning, simply absent.
+
+That matches the reported symptom exactly. The shipped folder is now:
 
 ```
 ERLeveling/
-├── mod.info          pzversion=41.78.16   <- Build 41 reads this + root media/
+├── mod.info          <- Build 41 reads these
 ├── poster.png
 ├── media/
-└── 42/
-    ├── mod.info      pzversion=42.0.0     <- Build 42 prefers this subfolder
+├── common/           <- must exist; git needs a file in it to carry it
+│   └── README.txt
+└── 42/               <- Build 42 reads these
+    ├── mod.info
     ├── poster.png
     └── media/
 ```
 
-Build 41 ignores version subfolders, so `42/` is invisible to it; Build 42 prefers
-`42/` and falls back to the root if it does not use versioned folders the way this
-assumes. Adding the subtree is therefore strictly non-worse on either build.
+`common/` holding a placeholder is not tidiness — git does not track empty
+directories, so without a file in it the folder does not survive a clone or a
+copy, and the mod drops out of the B42 list again. `tools/sync_versioned.sh
+--check` asserts the file is there, and `tools/build.sh` runs that check.
 
-The root tree stays the single source of truth. `tools/sync_versioned.sh`
-regenerates `42/` from it, and `tools/build.sh` fails if the two have drifted, so
-the duplication cannot rot silently.
+The `pzversion` key added in the first revision has been **removed again**. No
+source confirmed it is read, the folder itself is what declares the version to
+Build 42, and an unverified version key can only mis-gate the mod. Every
+`mod.info` is now the minimal proven set: `name`, `id`, `description`, `poster`,
+`author`, `modversion`.
+
+The lesson worth keeping: the first fix was reasoning from what seemed plausible
+about an API nobody had checked — the exact failure mode section 0 of this
+document exists to prevent, committed in the one part of the mod that is not Lua
+and so was never covered by the probe layer.
 
 Two keys were also removed from `mod.info`: `icon=` pointed at the 512x256 poster,
 which is not an icon and is unverified surface for no in-game benefit, and `url=`

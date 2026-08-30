@@ -29,37 +29,50 @@ Copy `Contents/mods/ERLeveling` into your Zomboid mods folder:
 | macOS | `~/Zomboid/mods/` |
 
 Copy the inner **`ERLeveling`** folder, not `Contents`. You should end up with
-exactly this, with `mod.info` one level down and nothing in between:
+exactly this:
 
 ```
 Zomboid/mods/ERLeveling/
-├── mod.info          <- Build 41 reads this
+├── mod.info          <- Build 41 reads these
 ├── poster.png
-├── media/            <- Build 41 content
-└── 42/
-    ├── mod.info      <- Build 42 reads this
+├── media/
+├── common/           <- must exist; Build 42 looks for it
+│   └── README.txt
+└── 42/               <- Build 42 reads these
+    ├── mod.info
     ├── poster.png
-    └── media/        <- Build 42 content
+    └── media/
 ```
 
 Enable the mod, then start a **new game or load any save** — it initialises
 cleanly on an existing character.
 
+### Why the folder looks duplicated
+
+Build 41 reads a mod's root `media/` and ignores version subfolders. **Build 42
+changed this**: it expects a version folder (`42/`) holding `mod.info`,
+`poster.png` *and* `media/`, next to a `common/` folder that has to exist even
+when it is empty.
+
+A mod with `media/` only at the root **does not appear in the Build 42 mod list at
+all** — no error, no warning, simply absent. Carrying both trees means one folder
+copy works on either build.
+
+`common/` holds a placeholder `README.txt` only because git cannot track an empty
+directory, and a `common/` that vanishes on clone takes the mod out of the B42
+list with it. Don't delete it.
+
 ### The mod doesn't appear in the mod list
 
-The list is built by scanning `Zomboid/mods/*/mod.info`, so a mod that is missing
-entirely is almost always one of these three:
-
-1. **Nested one level too deep.** If you see
-   `Zomboid/mods/ERLeveling/ERLeveling/mod.info` or
-   `Zomboid/mods/ERLeveling/Contents/...`, the game never finds `mod.info`. Move
-   the contents up one level. This is by far the most common cause — extracting a
-   GitHub zip produces a wrapper folder named after the branch.
-2. **Wrong Zomboid folder.** It is your *user* folder
+1. **Missing the `42/` or `common/` folder.** The single most likely cause on
+   Build 42, and the reason the tree above looks the way it does. Check both came
+   across in the copy.
+2. **Nested one level too deep.** If you see
+   `mods/ERLeveling/ERLeveling/mod.info` or `mods/ERLeveling/Contents/…`, the game
+   never finds `mod.info`. Move the contents up one level — extracting a GitHub
+   zip produces a wrapper folder named after the branch.
+3. **Wrong Zomboid folder.** It is your *user* folder
    (`C:\Users\<you>\Zomboid\mods\`), not the Steam install directory.
-3. **Build 42 filtering it out.** B42's mod list can hide mods that carry no
-   `pzversion`. Both `mod.info` files declare one, so make sure the `42/` folder
-   above actually came across in the copy.
 
 Still missing? Open `Zomboid/console.txt` and search for `ERLeveling` — if the
 game saw the folder at all it says so there.
