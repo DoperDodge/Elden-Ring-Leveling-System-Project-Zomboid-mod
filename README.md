@@ -28,10 +28,41 @@ Copy `Contents/mods/ERLeveling` into your Zomboid mods folder:
 | Linux | `~/Zomboid/mods/` |
 | macOS | `~/Zomboid/mods/` |
 
-You should end up with `…/Zomboid/mods/ERLeveling/mod.info`.
+Copy the inner **`ERLeveling`** folder, not `Contents`. You should end up with
+exactly this, with `mod.info` one level down and nothing in between:
+
+```
+Zomboid/mods/ERLeveling/
+├── mod.info          <- Build 41 reads this
+├── poster.png
+├── media/            <- Build 41 content
+└── 42/
+    ├── mod.info      <- Build 42 reads this
+    ├── poster.png
+    └── media/        <- Build 42 content
+```
 
 Enable the mod, then start a **new game or load any save** — it initialises
 cleanly on an existing character.
+
+### The mod doesn't appear in the mod list
+
+The list is built by scanning `Zomboid/mods/*/mod.info`, so a mod that is missing
+entirely is almost always one of these three:
+
+1. **Nested one level too deep.** If you see
+   `Zomboid/mods/ERLeveling/ERLeveling/mod.info` or
+   `Zomboid/mods/ERLeveling/Contents/...`, the game never finds `mod.info`. Move
+   the contents up one level. This is by far the most common cause — extracting a
+   GitHub zip produces a wrapper folder named after the branch.
+2. **Wrong Zomboid folder.** It is your *user* folder
+   (`C:\Users\<you>\Zomboid\mods\`), not the Steam install directory.
+3. **Build 42 filtering it out.** B42's mod list can hide mods that carry no
+   `pzversion`. Both `mod.info` files declare one, so make sure the `42/` folder
+   above actually came across in the copy.
+
+Still missing? Open `Zomboid/console.txt` and search for `ERLeveling` — if the
+game saw the folder at all it says so there.
 
 ### Dedicated server
 Add `ERLeveling` to `Mods=` in your server `.ini`. The mod is fully
@@ -194,7 +225,8 @@ disappears with the mod; saves stay loadable.
 PLAN.md      the specification this was built from
 NOTES.md     every deviation from it, and why - read §0 first
 tools/
-  build.sh          parse-check, test, then package for both builds
+  build.sh          parse-check, test, drift-check, then package
+  sync_versioned.sh regenerate the Build 42 subtree from the root tree
   test_offline.lua  95 assertions against a mock game environment
   pz_mock.lua       that mock
   cost_table.lua    print the cost and soft-cap curves
@@ -204,8 +236,12 @@ tools/
 ```bash
 lua5.4 tools/test_offline.lua     # 95 checks, 0 failures
 lua5.4 tools/cost_table.lua       # tuning made visible
-bash   tools/build.sh --zip       # dist/ERLeveling-b41.zip, dist/ERLeveling-b42.zip
+bash   tools/sync_versioned.sh    # regenerate the 42/ subtree from the root tree
+bash   tools/build.sh --zip       # validate, test, package to dist/ERLeveling.zip
 ```
+
+The root tree is the single source of truth; `42/` is generated from it. Edit the
+root tree and re-run `sync_versioned.sh` — `build.sh` fails if the two drift.
 
 In-game console helpers (need `-debug`, the `DebugCommands` option, or admin):
 

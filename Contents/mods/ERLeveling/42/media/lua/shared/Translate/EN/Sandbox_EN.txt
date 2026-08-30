@@ -1,0 +1,59 @@
+Sandbox_EN = {
+    Sandbox_ERLeveling = "Elden Ring Leveling",
+
+    Sandbox_ERLeveling_RuneMultiplier = "Rune multiplier",
+    Sandbox_ERLeveling_RuneMultiplier_tooltip = "Scales every rune payout. 1.0 is the tuned default; 2.0 doubles progression speed, 0.5 halves it.",
+
+    Sandbox_ERLeveling_CostPreset = "Level cost curve",
+    Sandbox_ERLeveling_CostPresetValues = "Lands Between Lite/Authentic (Brutal)/Custom",
+    Sandbox_ERLeveling_CostPreset_tooltip = "Lands Between Lite is tuned for a Project Zomboid run. Authentic uses Elden Ring's real level formula, which is calibrated for a 300-hour game and is punishing here. Custom uses the four values below.",
+
+    Sandbox_ERLeveling_CostA = "Custom curve: A (multiplier)",
+    Sandbox_ERLeveling_CostA_tooltip = "cost = A * level^B + C * level + Base. Only used by the Custom and Lands Between Lite presets.",
+    Sandbox_ERLeveling_CostB = "Custom curve: B (exponent)",
+    Sandbox_ERLeveling_CostB_tooltip = "Higher values make late levels much more expensive.",
+    Sandbox_ERLeveling_CostC = "Custom curve: C (linear term)",
+    Sandbox_ERLeveling_CostC_tooltip = "Flat per-level increase.",
+    Sandbox_ERLeveling_CostBase = "Custom curve: Base",
+    Sandbox_ERLeveling_CostBase_tooltip = "Floor cost added to every level.",
+
+    Sandbox_ERLeveling_StartingStat = "Starting attribute value",
+    Sandbox_ERLeveling_StartingStat_tooltip = "Every attribute begins here. A character with all eight at this value is Level 1.",
+    Sandbox_ERLeveling_MaxStat = "Maximum attribute value",
+    Sandbox_ERLeveling_MaxStat_tooltip = "Hard cap per attribute. Elden Ring's cap is 99.",
+
+    Sandbox_ERLeveling_EffectStrength = "Effect strength",
+    Sandbox_ERLeveling_EffectStrength_tooltip = "Global scalar on every attribute effect. Turn this down to keep the flavour without changing how hard the game is, or up for a power fantasy.",
+
+    Sandbox_ERLeveling_RequireGrace = "Require a Site of Grace to level up",
+    Sandbox_ERLeveling_RequireGrace_tooltip = "When on, you can only spend runes near a lit campfire, fireplace or stove, near a Grace Idol, or while resting.",
+
+    Sandbox_ERLeveling_LoseRunesOnDeath = "Runes lost on death (%)",
+    Sandbox_ERLeveling_LoseRunesOnDeath_tooltip = "How much of your carried runes drop when you die. 100 is Elden Ring behaviour.",
+    Sandbox_ERLeveling_BloodstainPersists = "Leave a bloodstain on death",
+    Sandbox_ERLeveling_BloodstainPersists_tooltip = "Dropped runes wait at the spot you died. Walk back to reclaim them. Dying again destroys the old bloodstain.",
+    Sandbox_ERLeveling_AnyoneCanLootBloodstain = "Anyone can claim a bloodstain",
+    Sandbox_ERLeveling_AnyoneCanLootBloodstain_tooltip = "Multiplayer only. When off, only the player who died can reclaim their own runes.",
+    Sandbox_ERLeveling_KeepStatsOnDeath = "Keep attributes on death",
+    Sandbox_ERLeveling_KeepStatsOnDeath_tooltip = "Elden Ring says you keep your level. Project Zomboid says death is a new character. Off is the harder, more Zomboid-shaped answer.",
+
+    Sandbox_ERLeveling_AllowRespec = "Respec",
+    Sandbox_ERLeveling_AllowRespecValues = "Never/Larval Tear only/Free",
+    Sandbox_ERLeveling_AllowRespec_tooltip = "Rebirth refunds every rune you have spent and resets all attributes to their starting value.",
+
+    Sandbox_ERLeveling_RuneArcSpawnRate = "Rune item spawn rate",
+    Sandbox_ERLeveling_RuneArcSpawnRate_tooltip = "Scales how often Rune Arcs, Golden Runes, Larval Tears and Grace Idols appear in loot. 0 disables them entirely.",
+
+    Sandbox_ERLeveling_ShowYouDied = "Show the YOU DIED overlay",
+    Sandbox_ERLeveling_ShowYouDied_tooltip = "A brief black fade with YOU DIED before the normal death screen.",
+    Sandbox_ERLeveling_ShowHudCounter = "Always show the rune counter on screen",
+    Sandbox_ERLeveling_ShowHudCounter_tooltip = "Off by default because the Project Zomboid HUD is already crowded. The counter is always visible on the Health tab and the Runes tab.",
+    Sandbox_ERLeveling_EnableSounds = "Play mod sounds",
+    Sandbox_ERLeveling_EnableSounds_tooltip = "Plays a sound on level up and on reclaiming a bloodstain.",
+
+    Sandbox_ERLeveling_AllowPerkGrants = "Allow granted Strength/Fitness levels",
+    Sandbox_ERLeveling_AllowPerkGrants_tooltip = "Only used on builds that do not expose a direct carry-weight API. The server grants at most +3 Strength and +2 Fitness, tracks exactly what it gave, and takes them back on a respec.",
+
+    Sandbox_ERLeveling_DebugCommands = "Enable ERDebug console commands",
+    Sandbox_ERLeveling_DebugCommands_tooltip = "Lets any player run ERDebug.give() and friends. Leave this off on a public server.",
+}

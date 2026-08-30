@@ -1,0 +1,9 @@
+ItemName_EN = {
+    ItemName_ERLeveling.RuneArc     = "Rune Arc",
+    ItemName_ERLeveling.GoldenRune1 = "Golden Rune [1]",
+    ItemName_ERLeveling.GoldenRune2 = "Golden Rune [2]",
+    ItemName_ERLeveling.GoldenRune3 = "Golden Rune [3]",
+    ItemName_ERLeveling.LarvalTear  = "Larval Tear",
+    ItemName_ERLeveling.GraceIdol   = "Grace Idol",
+    ItemName_ERLeveling.Bloodstain  = "Bloodstain",
+}

@@ -2,13 +2,13 @@
 #
 # Packages the mod for distribution.
 #
-#   tools/build.sh            -> dist/ERLeveling-b41/  and  dist/ERLeveling-b42/
-#   tools/build.sh --zip      -> the same, plus .zip archives
+#   tools/build.sh            -> dist/ERLeveling/
+#   tools/build.sh --zip      -> the same, plus a .zip archive
 #
-# The single source of truth is Contents/mods/ERLeveling/media. Build 41 reads a
-# mod's media/ folder directly; Build 42 prefers a versioned 42/ subfolder when
-# one is present. Rather than keeping two copies of every Lua file in git, the
-# Build 42 layout is generated here.
+# The shipped folder carries both layouts at once: Build 41 reads the root
+# media/, Build 42 reads the 42/ subfolder. tools/sync_versioned.sh generates
+# and verifies that subfolder from the root tree, which stays the single source
+# of truth.
 #
 set -euo pipefail
 
@@ -45,31 +45,26 @@ fi
 rm -rf "$DIST"
 mkdir -p "$DIST"
 
-# --- Build 41: flat layout -------------------------------------------------
-echo "==> building Build 41 layout"
-B41="$DIST/ERLeveling-b41/Contents/mods/ERLeveling"
-mkdir -p "$B41"
-cp -r "$SRC/." "$B41/"
-echo "    $B41"
+# --- Packaged copy ---------------------------------------------------------
+# The shipped folder already carries both layouts, so packaging is a straight
+# copy: Build 41 reads the root media/, Build 42 reads 42/media/.
+echo "==> packaging"
+OUT="$DIST/ERLeveling/Contents/mods/ERLeveling"
+mkdir -p "$OUT"
+cp -r "$SRC/." "$OUT/"
+echo "    $OUT"
 
 # --- Build 42: versioned layout -------------------------------------------
-echo "==> building Build 42 layout"
-B42="$DIST/ERLeveling-b42/Contents/mods/ERLeveling"
-mkdir -p "$B42/42"
-cp "$SRC/mod.info" "$B42/mod.info"
-cp "$SRC/poster.png" "$B42/poster.png"
-cp "$SRC/README.txt" "$B42/README.txt"
-cp "$SRC/mod.info" "$B42/42/mod.info"
-cp -r "$SRC/media" "$B42/42/media"
-echo "    $B42"
+# Both trees are committed (see tools/sync_versioned.sh for why), so this only
+# has to confirm the generated one has not drifted from its source.
+echo "==> checking the Build 42 subtree"
+"$ROOT/tools/sync_versioned.sh" --check
 
 if [ "${1:-}" = "--zip" ]; then
     if command -v zip >/dev/null 2>&1; then
         echo "==> zipping"
-        (cd "$DIST/ERLeveling-b41" && zip -qr "../ERLeveling-b41.zip" .)
-        (cd "$DIST/ERLeveling-b42" && zip -qr "../ERLeveling-b42.zip" .)
-        echo "    $DIST/ERLeveling-b41.zip"
-        echo "    $DIST/ERLeveling-b42.zip"
+        (cd "$DIST/ERLeveling" && zip -qr "../ERLeveling.zip" .)
+        echo "    $DIST/ERLeveling.zip"
     else
         echo "    (zip not installed, skipping archives)"
     fi
