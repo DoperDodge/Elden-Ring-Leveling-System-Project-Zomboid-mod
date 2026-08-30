@@ -115,20 +115,45 @@ end
 -- ---------------------------------------------------------------------------
 -- Vigor: damage negation + regeneration
 -- ---------------------------------------------------------------------------
+--- The list of BodyPartType values, resolved once for the session.
+--
+-- These used to be looked up inside the loop, seventeen times per pass, on two
+-- timers. If the build does not expose FromIndex that is seventeen logged stack
+-- traces a minute, because Project Zomboid logs a caught exception too (see the
+-- note at the top of ERLeveling_Compat.lua). Resolved once, it is at most a
+-- couple of traces for the whole session.
+ERFx._bodyParts = nil
+
+function ERFx.bodyPartTypes()
+    if ERFx._bodyParts ~= nil then return ERFx._bodyParts end
+    local list = {}
+    if ERCompat.hasGlobal("BodyPartType") then
+        local okCount, count = pcall(function() return BodyPartType.ToIndex(BodyPartType.MAX) end)
+        if not okCount or type(count) ~= "number" then count = 17 end
+        for i = 0, count - 1 do
+            local ok, t = pcall(function() return BodyPartType.FromIndex(i) end)
+            if ok and t ~= nil then
+                list[#list + 1] = t
+            else
+                break   -- the accessor is not there; stop rather than repeat it
+            end
+        end
+    end
+    ERFx._bodyParts = list
+    return list
+end
+
 --- Spread `amount` of healing over the player's damaged body parts, worst first.
 function ERFx.healSpread(player, amount)
     if amount == nil or amount <= 0 then return end
     local ok, bd = pcall(function() return player:getBodyDamage() end)
     if not ok or bd == nil then return end
-    if not ERCompat.hasGlobal("BodyPartType") then return end
 
-    local ok2, count = pcall(function() return BodyPartType.ToIndex(BodyPartType.MAX) end)
-    if not ok2 or type(count) ~= "number" then count = 17 end
-
+    local parts = ERFx.bodyPartTypes()
     local remaining = amount
-    for i = 0, count - 1 do
+    for i = 1, #parts do
         if remaining <= 0 then break end
-        local okP, part = pcall(function() return bd:getBodyPart(BodyPartType.FromIndex(i)) end)
+        local okP, part = ERCompat.call(bd, "getBodyPart", parts[i])
         if okP and part ~= nil then
             local hp = ERCompat.get(part, "getHealth", nil)
             if type(hp) == "number" and hp < 100 then
@@ -212,11 +237,9 @@ end)
 function ERFx.boostBandages(player, healingPower)
     local ok, bd = pcall(function() return player:getBodyDamage() end)
     if not ok or bd == nil then return end
-    if not ERCompat.hasGlobal("BodyPartType") then return end
-    local ok2, count = pcall(function() return BodyPartType.ToIndex(BodyPartType.MAX) end)
-    if not ok2 or type(count) ~= "number" then count = 17 end
-    for i = 0, count - 1 do
-        local okP, part = pcall(function() return bd:getBodyPart(BodyPartType.FromIndex(i)) end)
+    local parts = ERFx.bodyPartTypes()
+    for i = 1, #parts do
+        local okP, part = ERCompat.call(bd, "getBodyPart", parts[i])
         if okP and part ~= nil then
             if ERCompat.get(part, "bandaged", nil) == true
                or ERCompat.get(part, "isBandaged", false) == true then

@@ -22,11 +22,17 @@ ERGrace.HEAT_SPRITES = {
     "brazier", "hearth", "furnace",
 }
 
+-- Every member read here goes through ERCompat rather than a bare pcall, and the
+-- reason is the log flood described at the top of ERLeveling_Compat.lua: Project
+-- Zomboid writes a full stack trace for a caught exception too. This function
+-- runs for every object on up to 49 squares, twice a second, and plenty of
+-- IsoObjects have no getSprite() - as a bare pcall that is a stack trace per
+-- object per scan. Through ERCompat it is one trace per class, ever.
 local function spriteNameOf(obj)
-    local ok, sprite = pcall(function() return obj:getSprite() end)
-    if not ok or sprite == nil then return nil end
-    local ok2, name = pcall(function() return sprite:getName() end)
-    if not ok2 or type(name) ~= "string" then return nil end
+    local sprite = ERCompat.get(obj, "getSprite", nil)
+    if sprite == nil then return nil end
+    local name = ERCompat.get(sprite, "getName", nil)
+    if type(name) ~= "string" then return nil end
     return string.lower(name)
 end
 
@@ -63,8 +69,8 @@ local function isLitHeatSource(obj)
         if ok and on == true then return true end
     end
     -- Campfires built by the player carry their state in modData.
-    local okMd, md = pcall(function() return obj:getModData() end)
-    if okMd and type(md) == "table" then
+    local md = ERCompat.get(obj, "getModData", nil)
+    if type(md) == "table" then
         if md.lit == true or md.isLit == true or md.fuelAmt ~= nil and md.lit ~= false and md.lit ~= nil then
             return md.lit == true or md.isLit == true
         end
@@ -88,15 +94,15 @@ end
 
 --- Signal D: a Grace Idol resting on the square.
 local function idolOnSquare(square)
-    local ok, items = pcall(function() return square:getWorldObjects() end)
-    if not ok or items == nil then return false end
+    local items = ERCompat.get(square, "getWorldObjects", nil)
+    if items == nil then return false end
     local okSize, size = pcall(function() return items:size() end)
     if not okSize or size == nil then return false end
     for i = 0, size - 1 do
         local ok2, wi = pcall(function() return items:get(i) end)
         if ok2 and wi ~= nil then
-            local ok3, item = pcall(function() return wi:getItem() end)
-            if ok3 and item ~= nil then
+            local item = ERCompat.get(wi, "getItem", nil)
+            if item ~= nil then
                 local ft = ERCompat.get(item, "getFullType", nil)
                 if ft == ERBalance.GRACE_ITEM then return true end
             end
@@ -108,8 +114,8 @@ end
 local function scanSquare(square, radiusKind)
     if square == nil then return nil end
     if campfireLitAt(square) then return "campfire" end
-    local ok, objs = pcall(function() return square:getObjects() end)
-    if ok and objs ~= nil then
+    local objs = ERCompat.get(square, "getObjects", nil)
+    if objs ~= nil then
         local okSize, size = pcall(function() return objs:size() end)
         if okSize and size then
             for i = 0, size - 1 do
@@ -127,9 +133,9 @@ end
 --- Does the player hold a Grace Idol? Documented fallback for builds where
 -- placing the idol as a world object does not work (see NOTES.md).
 local function carryingIdol(player)
-    local ok, inv = pcall(function() return player:getInventory() end)
-    if not ok or inv == nil then return false end
-    local ok2, has = pcall(function() return inv:containsTypeRecurse("GraceIdol") end)
+    local inv = ERCompat.get(player, "getInventory", nil)
+    if inv == nil then return false end
+    local ok2, has = ERCompat.call(inv, "containsTypeRecurse", "GraceIdol")
     return ok2 and has == true
 end
 

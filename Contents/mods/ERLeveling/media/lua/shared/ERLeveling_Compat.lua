@@ -186,9 +186,15 @@ function ERCompat.hasEvent(name)
     return result
 end
 
---- Subscribe to an event only if it exists. The handler body is pcall-wrapped so a
--- Lua error inside our code can never spam the console every tick (PLAN.md 1.7).
+--- Subscribe to an event only if it exists. The handler body is pcall-wrapped so
+-- a Lua error inside our code cannot propagate into the engine (PLAN.md 1.7).
 -- Returns true when the subscription was made.
+--
+-- NOTE: this stops the error escaping, and ERCompat.throttledError limits OUR
+-- printing of it. Neither stops Project Zomboid writing its own stack trace for
+-- the underlying exception. The only way to keep the log quiet is not to fail
+-- repeatedly in the first place, which is what the (class, member) blacklist
+-- above is for.
 function ERCompat.onEvent(name, fn)
     if not ERCompat.hasEvent(name) then return false end
     local wrapped = function(a, b, c, d, e)

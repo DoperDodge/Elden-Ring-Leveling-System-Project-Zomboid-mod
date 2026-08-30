@@ -327,6 +327,33 @@ without `isLit()` convince the mod that no campfire is ever lit.
 the mod, and `tools/test_offline.lua` asserts that a missing member is attempted
 exactly once however many times it is called.
 
+### 2.8f Auditing the rest of the mod for the same trap
+
+Fixing the one flooding call was not the whole job. "A caught exception is still a
+logged exception" invalidates an assumption the *entire* compat strategy rested
+on, so every hot path that probes the game API by catching failures had to be
+re-read with that in mind. Two were worse than the one that was reported:
+
+* **`ERGrace`** reads members from every object on up to 49 squares, roughly twice
+  a second. `obj:getSprite()` was a bare `pcall`, and plenty of IsoObjects have no
+  `getSprite()` - that is a stack trace per object per scan, an order of magnitude
+  worse than the flood that was actually reported. It only escaped notice because
+  the reporter happened to be standing somewhere with few objects nearby. Every
+  member that may genuinely be absent now goes through `ERCompat`, so it is one
+  trace per class for the session. The `pcall`s left in that file are on calls
+  that are always present on their type (`getCell`, `getSquare`, collection
+  `size`/`get`, `instanceof`).
+
+* **The body-part loops** resolved `BodyPartType.FromIndex(i)` inside the loop,
+  seventeen times a pass, on two separate timers. Now resolved once per session
+  into `ERFx.bodyPartTypes()`.
+
+Also worth stating plainly, because the first instinct on seeing a flood is to
+reach for a throttle: `ERCompat.throttledError` limits **our** printing, and the
+`pcall` in `ERCompat.onEvent` stops the error escaping. Neither stops Project
+Zomboid writing its own stack trace. The only thing that keeps the log quiet is
+not failing repeatedly, which is what the (class, member) blacklist is for.
+
 ### 2.8e The load-order regression that hid the rune strip
 
 Same report: after the previous fix the rune counter disappeared entirely.
