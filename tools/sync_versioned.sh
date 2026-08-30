@@ -9,11 +9,16 @@
 # WHY BOTH TREES ARE COMMITTED
 # ----------------------------
 # Build 41 reads a mod's root media/ folder and ignores version subfolders.
-# Build 42 prefers a 42/ subfolder when one is present. Shipping only the flat
-# layout means Build 42 users can have the mod filtered out of the mod list as
-# an untagged legacy mod. Shipping both means whichever build you are on finds
-# a tree with a matching pzversion, and the person installing it does not have
-# to run a build step first.
+#
+# Build 42 changed this: it expects a version folder ("42") holding mod.info,
+# poster.png AND media, alongside a "common" folder that must exist even when it
+# is empty. A mod with media/ only at the root does not appear in the Build 42
+# mod list at all - no error, no warning, it is simply absent. That is the bug
+# this script exists to prevent.
+#
+# So the shipped folder carries both: the root tree for Build 41, the 42/ tree
+# for Build 42, and an occupied common/ folder. The person installing it copies
+# one folder and it works on either build with no build step.
 #
 # The root tree is the single source of truth. 42/ is generated. Never hand-edit
 # anything under 42/ - edit the root tree and re-run this.
@@ -34,9 +39,15 @@ if [ "${1:-}" = "--check" ]; then
     trap 'rm -rf "$TMP"' EXIT
     cp -r "$MOD/media" "$TMP/media"
     cp "$MOD/poster.png" "$TMP/poster.png"
-    if diff -r -q "$TMP/media" "$V42/media" >/dev/null 2>&1 \
-       && diff -q "$TMP/poster.png" "$V42/poster.png" >/dev/null 2>&1; then
-        echo "    42/ is in sync with the root tree"
+    ok=1
+    diff -r -q "$TMP/media" "$V42/media" >/dev/null 2>&1 || ok=0
+    diff -q "$TMP/poster.png" "$V42/poster.png" >/dev/null 2>&1 || ok=0
+    diff -q "$MOD/mod.info" "$V42/mod.info" >/dev/null 2>&1 || ok=0
+    # git cannot track an empty directory, so common/ must hold a real file or
+    # it will not survive a clone - and Build 42 needs the folder to exist.
+    [ -f "$MOD/common/README.txt" ] || { echo "    common/ is missing its placeholder file" >&2; ok=0; }
+    if [ "$ok" = "1" ]; then
+        echo "    42/ is in sync, common/ present"
         exit 0
     fi
     echo "    42/ HAS DRIFTED from the root tree - run tools/sync_versioned.sh" >&2
@@ -44,8 +55,12 @@ if [ "${1:-}" = "--check" ]; then
 fi
 
 rm -rf "$V42/media"
-mkdir -p "$V42"
+mkdir -p "$V42" "$MOD/common"
 cp -r "$MOD/media" "$V42/media"
 cp "$MOD/poster.png" "$V42/poster.png"
-echo "synced $V42/media and poster.png from the root tree"
-echo "note: 42/mod.info is maintained by hand (it carries its own pzversion)"
+cp "$MOD/mod.info" "$V42/mod.info"
+if [ ! -f "$MOD/common/README.txt" ]; then
+    echo "warning: $MOD/common/README.txt is missing - Build 42 needs common/ to" >&2
+    echo "         exist, and git will not carry an empty directory." >&2
+fi
+echo "synced $V42/{media,poster.png,mod.info} from the root tree"
