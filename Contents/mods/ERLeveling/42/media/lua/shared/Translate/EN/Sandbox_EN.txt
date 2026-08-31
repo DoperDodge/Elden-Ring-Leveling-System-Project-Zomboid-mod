@@ -35,7 +35,7 @@ Sandbox_EN = {
     Sandbox_ERLeveling_AnyoneCanLootBloodstain = "Anyone can claim a bloodstain",
     Sandbox_ERLeveling_AnyoneCanLootBloodstain_tooltip = "Multiplayer only. When off, only the player who died can reclaim their own runes.",
     Sandbox_ERLeveling_KeepStatsOnDeath = "Keep attributes on death",
-    Sandbox_ERLeveling_KeepStatsOnDeath_tooltip = "Elden Ring says you keep your level. Project Zomboid says death is a new character. Off is the harder, more Zomboid-shaped answer.",
+    Sandbox_ERLeveling_KeepStatsOnDeath_tooltip = "On by default, because Elden Ring keeps your level and the runes you were carrying are what you lose. Turn it off for the harder, more Zomboid-shaped answer where death costs you everything.",
 
     Sandbox_ERLeveling_AllowRespec = "Respec",
     Sandbox_ERLeveling_AllowRespecValues = "Never/Larval Tear only/Free",

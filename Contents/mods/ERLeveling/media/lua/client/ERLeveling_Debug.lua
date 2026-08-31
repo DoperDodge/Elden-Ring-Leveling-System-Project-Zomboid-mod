@@ -105,6 +105,14 @@ function ERDebug.grace()
     end
 end
 
+--- Last resort: detach every event handler this mod installed, and switch the
+-- interface off. Use this if the log is filling and it is not obvious why - if
+-- the errors stop after running it, they were ours.
+function ERDebug.stopAll()
+    ERCompat.unsubscribeAll()
+    if ERUI and ERUI.disable then ERUI.disable("ERDebug.stopAll()") end
+end
+
 --- Report which probed APIs are missing on this build.
 function ERDebug.compat()
     ERCompat._reported = false

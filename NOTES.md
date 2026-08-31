@@ -508,6 +508,69 @@ balance table rather than from the call sites.
 call site. Verified by reintroducing `int.readSpeed` and confirming the build
 rejects it.
 
+## 3.11 The death mechanic never worked, and the reason was one line
+
+Reported from a real game: dying dropped no runes, left nothing to collect, reset
+every attribute, and sometimes crashed. M4 - "the mechanic people will judge the
+mod on" (PLAN.md 4.2) - was broken end to end.
+
+Three of the four came from `ERData.keyFor`:
+
+```lua
+local name = ERCompat.get(player, "getUsername", nil)
+if type(name) == "string" and name ~= "" then return name end
+```
+
+In multiplayer that is an account name and exactly right. **In single player
+`getUsername()` is the character's name.** So the bloodstain and the
+`KeepStatsOnDeath` carry-over slot were both filed under the name of the survivor
+who had just died, and the next one looked under a different key and found
+nothing. Every offline test passed because the harness reused one player object
+across the "death", which is precisely the thing a real death does not do. The
+test now builds a genuinely new character with a different name in the same slot.
+
+Fixed: username only when `isClient()`, otherwise the local player slot, which is
+the thing that actually persists.
+
+`KeepStatsOnDeath` also now defaults to **true**. PLAN.md 17.2 chose false, and
+with the key bug that meant death silently wiped everything with no way to get it
+back. Elden Ring keeps your level; the runes you are carrying are what you lose.
+That is the mechanic, and it is now the default.
+
+### On the crash
+
+Unconfirmed - no crash log yet - so this is risk removal rather than a diagnosis.
+Two things that ran during the death sequence no longer do:
+
+* **The world-item spawn.** `sq:AddWorldInventoryItem("ERLeveling.Bloodstain", ...)`
+  pushed a custom item into the world mid-death, where a Lua `pcall` cannot
+  protect against a Java-side fault and the object then has to survive rendering
+  and saving. It was the riskiest thing the mod did and it bought very little -
+  the screen marker and the tab readout already do the navigating. The item
+  definition stays so any already spawned still resolve on load; nothing creates
+  new ones. Tidying up an old marker also no longer happens during death.
+* **Render paths reading a dying player.** The rune strip and Runes tab read from
+  the player every frame. `ERClient.player()` now returns nil for a dead one.
+
+## 3.12 Making the log flood stop without knowing its cause
+
+The reporter asked for the errors to stop, and after several rounds the specific
+cause was still not identified. Two structural answers, because the honest
+position is that a mod should not be able to do this regardless of which line is
+at fault:
+
+* **A circuit breaker per handler.** `ERCompat.onEvent` counts failures; after
+  five, that handler is never called again and says so once. One broken feature is
+  worth losing, a log filling at frame rate is not.
+* **`ERDebug.stopAll()`.** Detaches every handler the mod installed and switches
+  the interface off. If the errors stop, they were ours - which settles the
+  question in one step instead of another round of guessing.
+
+Note what the circuit breaker does *not* cover: an exception caught inside our own
+`pcall` never reaches the handler boundary, so the counter never sees it, and
+Project Zomboid logs it anyway. That class is the (class, member) blacklist's job.
+Two different mechanisms for two genuinely different failure shapes.
+
 ## 4. Tuning changed from the plan
 
 * Effect envelopes (`ERBalance.EFFECTS`) are new — PLAN.md §3.1 describes the

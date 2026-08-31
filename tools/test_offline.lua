@@ -137,7 +137,19 @@ eq("a non-numeric stat is reset", cleaned.stats.vig, 10)
 eq("a non-numeric balance is reset", cleaned.heldRunes, 0)
 
 p._md.ERLeveling = nil
-eq("player key uses the username", ERData.keyFor(p), "Tarnished")
+
+-- Single player must key by the local slot, NOT the character name. Keying by
+-- getUsername() meant that dying and rolling a new survivor changed the key, so
+-- the bloodstain was filed under a name nothing would look up again.
+eq("single player keys by slot, not character name", ERData.keyFor(p), "SP_0")
+
+local reborn = mock.newPlayer("A Completely Different Name", 100, 100, 0)
+eq("a new character in the same slot keeps the same key",
+   ERData.keyFor(reborn), ERData.keyFor(p))
+
+mock.setMode(true, false)   -- multiplayer client
+eq("multiplayer keys by account username", ERData.keyFor(p), "Tarnished")
+mock.setMode(false, false)
 
 -- ---------------------------------------------------------------------------
 section("runes")
@@ -347,6 +359,79 @@ mock.advance(20000)
 p._md.ERLeveling.heldRunes = 0
 ERBloodstain.onDeath(p)
 check("dying broke leaves no bloodstain", ERBloodstain.forPlayer(p) == nil)
+
+-- ---------------------------------------------------------------------------
+section("death survives a change of character")
+-- ---------------------------------------------------------------------------
+-- Reported from a real game: dying dropped no runes, left nothing to collect,
+-- and reset every attribute. All three came from the player key changing when
+-- the character did.
+mock.resetGlobal()
+mock.advance(20000)
+mock.clearSandbox()
+mock.setSandbox("RequireGrace", false)
+
+p._md.ERLeveling.heldRunes = 4000
+p._md.ERLeveling.stats.vig = 25
+p._md.ERLeveling.stats.str = 18
+p._md.ERLeveling.totalSpent = 9999
+p:setPos(300, 400, 0)
+ERBloodstain.onDeath(p)
+
+-- The survivor who wakes up next is a different character object with a
+-- different name, in the same player slot.
+local nextLife = mock.newPlayer("Someone Else Entirely", 300, 400, 0)
+mock.players[0] = nextLife
+
+local stain = ERBloodstain.forPlayer(nextLife)
+check("the next character can see the bloodstain", stain ~= nil)
+if stain then
+    eq("it holds everything the last one was carrying", stain.runes, 4000)
+    eq("it is where they fell (x)", stain.x, 300)
+    eq("it is where they fell (y)", stain.y, 400)
+end
+
+mock.setSandbox("KeepStatsOnDeath", true)
+ERBloodstain.onCreatePlayer(0, nextLife)
+eq("attributes carried across, as Elden Ring does", ERData.stat(nextLife, "vig"), 25)
+eq("and the second one too", ERData.stat(nextLife, "str"), 18)
+eq("runes spent are remembered for a respec", ERData.get(nextLife).totalSpent, 9999)
+
+nextLife:setPos(300.5, 400.5, 0)
+local got = ERNet.dispatch(nextLife, "reclaim", {})
+check("the next character can reclaim it", got.ok == true, got.reason)
+eq("exactly what was dropped comes back", ERData.runes(nextLife), 4000)
+
+-- With the option off, a death should still cost the attributes.
+mock.resetGlobal()
+mock.advance(20000)
+mock.setSandbox("KeepStatsOnDeath", false)
+local third = mock.newPlayer("Third Survivor", 10, 10, 0)
+mock.players[0] = third
+ERBloodstain.onCreatePlayer(0, third)
+eq("with the option off, attributes start fresh", ERData.stat(third, "vig"), 10)
+
+mock.players[0] = p
+mock.clearSandbox()
+mock.setSandbox("RequireGrace", false)
+
+-- ---------------------------------------------------------------------------
+section("a failing handler stops being called")
+-- ---------------------------------------------------------------------------
+-- The log flood the reporter kept seeing. Whatever the cause, a handler that
+-- keeps throwing must switch itself off rather than write a stack trace forever.
+local calls = 0
+ERCompat.onEvent("EveryTenMinutes", function()
+    calls = calls + 1
+    error("always fails")
+end)
+for _ = 1, 30 do mock.fire("EveryTenMinutes") end
+check("the handler is abandoned after a few failures", calls <= 5, calls)
+check("it really did try before giving up", calls >= 1, calls)
+
+local before = calls
+for _ = 1, 20 do mock.fire("EveryTenMinutes") end
+eq("and is never called again", calls, before)
 
 -- ---------------------------------------------------------------------------
 section("empty and edge states")

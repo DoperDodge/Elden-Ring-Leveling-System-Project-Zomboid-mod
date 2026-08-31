@@ -87,7 +87,7 @@ option ERLeveling.AnyoneCanLootBloodstain
 
 option ERLeveling.KeepStatsOnDeath
 {
-    type = boolean, default = false,
+    type = boolean, default = true,
     page = ERLeveling, translation = ERLeveling_KeepStatsOnDeath,
 }
 

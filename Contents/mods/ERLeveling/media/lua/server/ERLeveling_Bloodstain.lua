@@ -56,11 +56,19 @@ local function squareAt(x, y, z)
     return sq
 end
 
+-- Deliberately does nothing any more.
+--
+-- This used to spawn an ERLeveling.Bloodstain world item on the death square.
+-- Dying was reported to crash the game sometimes, and pushing a custom item into
+-- the world mid-death-sequence - where a Lua pcall cannot protect you from a
+-- Java-side fault, and the object then has to survive rendering and saving - is
+-- the riskiest thing this mod did. It bought very little: the screen marker and
+-- the Runes tab readout already do the navigating.
+--
+-- The item definition stays in erleveling_items.txt so that any already spawned
+-- by an earlier version still resolve when a save loads. Nothing creates new ones.
 local function spawnMarker(x, y, z)
-    local sq = squareAt(x, y, z)
-    if sq == nil then return false end
-    local ok = pcall(function() sq:AddWorldInventoryItem(MARKER_TYPE, 0.5, 0.5, 0.0) end)
-    return ok
+    return false
 end
 
 local function removeMarker(x, y, z)
@@ -123,8 +131,10 @@ function ERBloodstain.onDeath(player)
     end
     ERRunes.snapshot[key] = math.max(0, held - dropped)
 
-    -- Destroy the previous stain, exactly like Elden Ring.
-    if existing then removeMarker(existing.x, existing.y, existing.z) end
+    -- Destroy the previous stain, exactly like Elden Ring. Only the record is
+    -- touched here: reaching into the world to tidy up an old marker item is
+    -- exactly the kind of thing that should not happen mid-death-sequence, so
+    -- that is left to the reclaim path where the game is in a settled state.
     g.bloodstains[key] = nil
 
     if dropped > 0 and ERBalance.sv("BloodstainPersists") then
