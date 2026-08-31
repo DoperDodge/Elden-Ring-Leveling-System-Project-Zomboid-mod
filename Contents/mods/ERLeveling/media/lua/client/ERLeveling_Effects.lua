@@ -241,8 +241,10 @@ function ERFx.boostBandages(player, healingPower)
     for i = 1, #parts do
         local okP, part = ERCompat.call(bd, "getBodyPart", parts[i])
         if okP and part ~= nil then
-            if ERCompat.get(part, "bandaged", nil) == true
-               or ERCompat.get(part, "isBandaged", false) == true then
+            -- isBandaged() only. `part.bandaged` is a FIELD, and ERCompat can
+            -- only call methods - reading it here called a boolean, threw, and
+            -- cost a logged stack trace for nothing. See ERLeveling_Compat.lua.
+            if ERCompat.get(part, "isBandaged", false) == true then
                 local hp = ERCompat.get(part, "getHealth", nil)
                 if type(hp) == "number" and hp < 100 then
                     ERCompat.call(part, "setHealth", math.min(100, hp + healingPower * 0.25))

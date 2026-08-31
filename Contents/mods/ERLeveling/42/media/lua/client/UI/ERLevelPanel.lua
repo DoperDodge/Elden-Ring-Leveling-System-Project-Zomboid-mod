@@ -453,7 +453,7 @@ ERTooltipLayer.DESCRIPTIONS = {
     str = "Strength is the swing. More damage with every melee blow, and a heavier load on your back.",
     dex = "Dexterity is the hand. Faster recovery between swings, quicker reloads, and gentler wear on your weapons.",
     int = "Intelligence is the study. Every skill you practise is learned faster.",
-    fth = "Faith is the mending. Dressings and medicine work harder, and sickness loosens its grip. It does NOT cure the zombie infection.",
+    fth = "Faith is the mending. Wounds you have dressed knit closed a little further with every passing minute, and sickness loosens its grip. It does NOT cure the zombie infection.",
     arc = "Arcane is the fortune. More runes from the dead, and the world yields a little more to those who look.",
 }
 

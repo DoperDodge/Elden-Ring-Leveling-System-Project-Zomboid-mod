@@ -115,9 +115,15 @@ function ERCompat.has(obj, name)
     return not isKnownBad(obj, name)
 end
 
---- Safe method invocation. Returns ok, value.
+--- Safe METHOD invocation. Returns ok, value.
 -- Never propagates an error out of the game API, and never attempts the same
 -- missing member twice on the same class.
+--
+-- METHODS ONLY. This calls obj[name](obj, ...), so passing the name of a plain
+-- field calls that field's value - "attempt to call a boolean" - which throws and
+-- costs a logged stack trace for nothing. There is no field-reading equivalent
+-- here on purpose: indexing a game object for a member it lacks is the thing this
+-- whole file exists to avoid.
 function ERCompat.call(obj, name, ...)
     if obj == nil or name == nil then return false, nil end
     if isKnownBad(obj, name) then return false, nil end
