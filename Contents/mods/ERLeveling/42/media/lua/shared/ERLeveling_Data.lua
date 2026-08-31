@@ -15,8 +15,19 @@ ERData = ERData or {}
 -- Never store an IsoPlayer in a long-lived table (PLAN.md 15.2); store this.
 function ERData.keyFor(player)
     if player == nil then return nil end
-    local name = ERCompat.get(player, "getUsername", nil)
-    if type(name) == "string" and name ~= "" then return name end
+
+    -- Multiplayer: the account username is stable across deaths, which is exactly
+    -- what a bloodstain needs - it has to outlive the character that dropped it.
+    if isClient() then
+        local name = ERCompat.get(player, "getUsername", nil)
+        if type(name) == "string" and name ~= "" then return name end
+    end
+
+    -- Single player: getUsername() gives the CHARACTER's name, not an account.
+    -- Preferring it here was a real bug: the moment you died and rolled a new
+    -- survivor the key changed, so the bloodstain was filed under a name nothing
+    -- would ever look up again, and the carry-over slot for KeepStatsOnDeath was
+    -- lost with it. The local player slot is the thing that actually persists.
     local idx = ERCompat.get(player, "getPlayerNum", nil)
     if idx == nil then idx = 0 end
     return "SP_" .. tostring(idx)

@@ -192,7 +192,7 @@ All under the **Elden Ring Leveling** page in sandbox settings.
 | `LoseRunesOnDeath` | 100% | How much of your carried runes drop. |
 | `BloodstainPersists` | on | Dropped runes wait where you died. |
 | `AnyoneCanLootBloodstain` | off | Multiplayer. Off means only you can reclaim your own. |
-| `KeepStatsOnDeath` | off | Elden Ring says you keep your level; Project Zomboid says death is a new character. Off is the harder answer. |
+| `KeepStatsOnDeath` | **on** | Elden Ring keeps your level — the runes you were carrying are what you lose. Turn it off for the harder, more Zomboid-shaped answer where death costs you everything. |
 | `AllowRespec` | Larval Tear only | `Never` / `Larval Tear only` / `Free`. |
 
 ### Loot and presentation
@@ -260,11 +260,28 @@ same one keeps failing, the mod switches its own interface off and says so in
 
 ```
 [ERLeveling] Disabling the rune interface for this session: too many UI errors
+[ERLeveling] the handler for OnPlayerUpdate has failed 5 times and is now
+             switched off for this session
 ```
 
 Runes, levelling and bloodstains keep working when that happens — only the drawing
 stops. If you see it, the lines above it in `console.txt` name the failing widget;
 please report them.
+
+A single event handler that keeps failing is switched off the same way, so one
+broken feature cannot fill your log at frame rate.
+
+**Last resort:** `ERDebug.stopAll()` detaches every event handler this mod
+installed and switches the interface off. If errors stop after running it, they
+were ours — which is a useful thing to know either way.
+
+### Bloodstains vanished, or attributes reset
+
+Fixed. Both came from one bug: in single player the mod keyed your data by
+`getUsername()`, which is the *character's* name, so dying and rolling a new
+survivor changed the key and orphaned the bloodstain and the carry-over slot. It
+keys by player slot now. A bloodstain dropped by an older version is not
+recoverable — sorry.
 
 ---
 

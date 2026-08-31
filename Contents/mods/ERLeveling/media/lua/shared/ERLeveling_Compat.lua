@@ -192,6 +192,12 @@ function ERCompat.hasEvent(name)
     return result
 end
 
+-- Every subscription we make, so ERCompat.unsubscribeAll() can take them all
+-- back off again. That is the escape hatch behind ERDebug.stopAll().
+ERCompat._subscriptions = ERCompat._subscriptions or {}
+
+local MAX_HANDLER_FAILURES = 5
+
 --- Subscribe to an event only if it exists. The handler body is pcall-wrapped so
 -- a Lua error inside our code cannot propagate into the engine (PLAN.md 1.7).
 -- Returns true when the subscription was made.
@@ -199,16 +205,51 @@ end
 -- NOTE: this stops the error escaping, and ERCompat.throttledError limits OUR
 -- printing of it. Neither stops Project Zomboid writing its own stack trace for
 -- the underlying exception. The only way to keep the log quiet is not to fail
--- repeatedly in the first place, which is what the (class, member) blacklist
--- above is for.
+-- repeatedly in the first place - which is what the (class, member) blacklist
+-- above does for failures we catch ourselves, and what the failure counter below
+-- does for failures that escape the handler body.
+--
+-- A handler that fails MAX_HANDLER_FAILURES times stops being called at all. One
+-- broken feature is worth losing; a log filling at frame rate is not.
 function ERCompat.onEvent(name, fn)
     if not ERCompat.hasEvent(name) then return false end
+    local failures = 0
+    local burnedOut = false
     local wrapped = function(a, b, c, d, e)
+        if burnedOut or ERCompat.stopped then return end
         local ok, err = pcall(fn, a, b, c, d, e)
-        if not ok then ERCompat.throttledError(name, err) end
+        if not ok then
+            failures = failures + 1
+            ERCompat.throttledError(name, err)
+            if failures >= MAX_HANDLER_FAILURES then
+                burnedOut = true
+                print("[ERLeveling] the handler for " .. tostring(name) .. " has failed "
+                      .. failures .. " times and is now switched off for this session, "
+                      .. "so it cannot keep filling the log. Please report the errors above.")
+            end
+        end
     end
     local ok = pcall(function() Events[name].Add(wrapped) end)
+    if ok then
+        table.insert(ERCompat._subscriptions, { name = name, fn = wrapped })
+    end
     return ok
+end
+
+--- Take every one of our event handlers back off. The last-resort switch: if the
+-- log is still filling and it is not obvious why, this establishes in one step
+-- whether this mod is the source.
+function ERCompat.unsubscribeAll()
+    ERCompat.stopped = true
+    local removed = 0
+    for i = 1, #ERCompat._subscriptions do
+        local sub = ERCompat._subscriptions[i]
+        local ok = pcall(function() Events[sub.name].Remove(sub.fn) end)
+        if ok then removed = removed + 1 end
+    end
+    print("[ERLeveling] detached " .. removed .. " of " .. #ERCompat._subscriptions
+          .. " event handlers. The mod is now inert until you reload the save.")
+    return removed
 end
 
 -- Error printing is throttled per source so a per-tick failure logs a handful of

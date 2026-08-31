@@ -19,11 +19,25 @@ ERClient.lastErrorAt = 0
 function ERClient.player(playerNum)
     local n = playerNum or 0
     local ok, p = pcall(function() return getSpecificPlayer(n) end)
-    if ok and p ~= nil then return p end
+    if ok and p ~= nil then return ERClient.usable(p) end
     if n ~= 0 then return nil end
     local ok2, p2 = pcall(function() return getPlayer() end)
-    if ok2 then return p2 end
+    if ok2 then return ERClient.usable(p2) end
     return nil
+end
+
+--- nil for a player who is dead or being torn down.
+--
+-- The rune strip and the Runes tab read from the player on every frame, and the
+-- death sequence is precisely when that object stops being safe to touch. Dying
+-- was reported to crash the game sometimes; a render path still reading a
+-- half-destroyed IsoPlayer is a candidate, and refusing to look is free. The UI
+-- shows zeroes for the moment between death and the next character, which is
+-- both harmless and honest.
+function ERClient.usable(player)
+    if player == nil then return nil end
+    if ERCompat.get(player, "isDead", false) == true then return nil end
+    return player
 end
 
 -- Snapshot caching. Both the rune strip and the Runes tab call snapshot() from
